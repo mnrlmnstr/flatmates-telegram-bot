@@ -1,19 +1,20 @@
 ## Simple bot for my flatmates
 ### Features:
-- Remind for apparments cleaning
+- Remind for appartments cleaning
 - Hate you
+- Make some jokes
 
 ## Setup
 ### Create & activate virtual environment
 ```
-python3 -m venv "venv"
+python -m venv "venv"
 source venv/bin/activate
 ```
 
 
 ### Install dependencies
 ```
-pip3 install -r requirements.txt
+pip install -r requirements.txt
 ```
 
 ### Setup tokens in env
