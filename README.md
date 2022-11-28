@@ -23,3 +23,8 @@ TELEGRAM_TOKEN
 AIRTABLE_TOKEN
 AIRTABLE_ID
 ```
+
+## Start
+```
+python bot.py
+```
