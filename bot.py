@@ -24,7 +24,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.message.from_user
     logger.info("User %s started the conversation.", user.username)
     keyboard = [
-        [InlineKeyboardButton("🧻 Хто зараз прибирає?", callback_data=str(WHOIS_CLEANING))],
+        [InlineKeyboardButton("🧻 Хто прибирає?", callback_data=str(WHOIS_CLEANING))],
         [InlineKeyboardButton("📝 Записатися на прибирання", callback_data=str(ADD_FLATMATE))],
         [InlineKeyboardButton("😘 Бот як ся маєш?", callback_data=str(FUCK_OFF))]
     ]
@@ -39,7 +39,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     cleaner_record = table.first(formula=match({"isCleaning": True}))
     cleaner = cleaner_record['fields']['username']
-    records = table.all(sort=['id'])
+    records = table.all(sort=['Created'])
 
     if cleaner == user.username:
         for idx, record in enumerate(records):
@@ -111,6 +111,7 @@ async def post_init(application: ApplicationBuilder) -> None:
     await application.bot.set_my_commands([
         ('start', 'Вітання та основні команди'),
         ('done', 'Я прибрався!'),
+        ('whois_cleaning', 'Хто зараз прибирає?'),
     ])
 
 if __name__ == '__main__':
@@ -135,11 +136,13 @@ if __name__ == '__main__':
 
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
     done_handler = CommandHandler('done', done)
+    whois_cleaning_handler = CommandHandler('whois_cleaning', whois_cleaning)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
     application.add_handler(conv_handler)
     application.add_handler(reply_handler)
     application.add_handler(done_handler)
+    application.add_handler(whois_cleaning_handler)
     application.add_handler(unknown_handler)
     
     application.run_polling()
