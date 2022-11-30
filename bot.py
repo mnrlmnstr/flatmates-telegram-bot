@@ -1,5 +1,6 @@
 import re
 import os
+import datetime
 import logging
 
 from pyairtable import Table
@@ -35,7 +36,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=reply_markup)
     return START_ROUTES
 
-async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send the alarm message."""
+    job = context.job
+    await context.bot.send_message(job.chat_id, text=f"Beep! {job.data} seconds are over!")
+
+async def set_alarm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    context.job_queue.run_once(alarm, float(context.args[0]), chat_id=update.effective_chat.id, name=str(update.effective_chat.id), data=float(context.args[0]))
+
+async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.message.from_user
     cleaner_record = table.first(formula=match({"isCleaning": True}))
     cleaner = cleaner_record['fields']['username']
@@ -52,7 +61,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text(f'@{user.username} ти нащо прибрався, зараз не твоя черга?\n\nКлятий москась @{cleaner}, ти чому пропустив свою чергу? Будеш прибирати на наступному тижні.')
 
-async def add_flatmate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def add_flatmate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Add flatmate to the Airtable."""
     text = ''
     flatmate = update.callback_query.from_user
@@ -67,13 +76,13 @@ async def add_flatmate(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
-async def whois_cleaning(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def whois_cleaning(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show flatmate who clean"""
     record = table.first(formula=match({"isCleaning": True}))
     username = record['fields']['username']
     await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Зараз черга @{username}')
 
-async def fuck_off(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def fuck_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """f o"""
     flatmate = update.callback_query.from_user
     await context.bot.send_photo(
@@ -90,10 +99,12 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         (['пепсі'], 'кок кола краще'),
         (['кола'], 'пепсі краще'),
         (['так'], 'піздак'),
+        (['бот'], 'хуйбот'),
         (['сало'], 'а борщ?'),
         (['борщ'], 'а сало?'),
         (['магазин'], 'купить мені пииииввааааа'),
         (['сука'], 'https://uk.wikipedia.org/wiki/%D0%9C%D1%96%D0%B7%D0%BE%D0%B3%D1%96%D0%BD%D1%96%D1%8F'),
+        (['рашка'], 'не "рашка", а пидорахия блинолопатная скотоублюдия, свинособачий хуйлостан, рабские вымираты и нефтедырное пынебабве'),
         (['хозяйка', 'хозяйки', 'хозяйку'], 'Я піздолів, жополіз хозяйки, буду унітазом-мочеглотом. Хочу лізати волосату, немиту пізду під час її менструації. Якщо хозяйка трахалась — то тільки після ретельного митья. Хочу пити мочу і глотать всі виділення хозяйки. Вилижу жопу у анусі.'),
     ]
 
@@ -139,6 +150,8 @@ if __name__ == '__main__':
     whois_cleaning_handler = CommandHandler('whois_cleaning', whois_cleaning)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
+    application.add_handler(CommandHandler('alarm', alarm))
+    application.add_handler(CommandHandler('set_alarm', set_alarm))
     application.add_handler(conv_handler)
     application.add_handler(reply_handler)
     application.add_handler(done_handler)
