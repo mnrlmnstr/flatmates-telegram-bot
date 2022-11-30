@@ -35,6 +35,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=reply_markup)
     return START_ROUTES
 
+async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.message.from_user
+    cleaner_record = table.first(formula=match({"isCleaning": True}))
+    cleaner = cleaner_record['fields']['username']
+    records = table.all(sort=['id'])
+
+    if cleaner == user.username:
+        for idx, record in enumerate(records):
+            if record == cleaner_record:
+                new_cleaner_record = records[0] if len(records) == idx + 1 else records[idx + 1]
+                new_cleaner = new_cleaner_record['fields']['username']
+                table.update(new_cleaner_record['id'], {'isCleaning': True})
+                table.update(cleaner_record['id'], {'isCleaning': False})
+                await update.message.reply_text(f'Раб @{cleaner} каже що прибрався, але я б йому не вірив! Наступним хату прибирає @{new_cleaner}')
+    else:
+        await update.message.reply_text(f'@{user.username} ти нащо прибрався, зараз не твоя черга?\n\nКлятий москась @{cleaner}, ти чому пропустив свою чергу? Будеш прибирати на наступному тижні.')
+
 async def add_flatmate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Add flatmate to the Airtable."""
     text = ''
@@ -67,9 +84,11 @@ async def fuck_off(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Listen to key words and answer"""
     phrases = [
-        (['+'], 'https://www.shitpostbot.com/img/templates/goatse-5807e8e8431a5.png'),
+        # (['+'], 'https://www.shitpostbot.com/img/templates/goatse-5807e8e8431a5.png'),
         (['собака'], 'собакаааа, вона краще ніж ви люди, людям довіряти не можно, от собаки вони найкращі...'),
         (['чорт'], 'а що одразу чорт????'),
+        (['пепсі'], 'кок кола краще'),
+        (['кола'], 'пепсі краще'),
         (['так'], 'піздак'),
         (['сало'], 'а борщ?'),
         (['борщ'], 'а сало?'),
@@ -84,8 +103,19 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             if key in message:
                 await update.message.reply_text(phrase[1])
 
+async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Answer to unknown command"""
+    await update.message.reply_text('Що це за команда? Ти що дебіл?')
+
+async def post_init(application: ApplicationBuilder) -> None:
+    await application.bot.set_my_commands([
+        ('start', 'Вітання та основні команди'),
+        ('done', 'Я прибрався!'),
+    ])
+
 if __name__ == '__main__':
-    application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    application = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
+
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
@@ -102,6 +132,14 @@ if __name__ == '__main__':
         },
         fallbacks=[CommandHandler("start", start)],
     )
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply))
+
+    reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
+    done_handler = CommandHandler('done', done)
+    unknown_handler = MessageHandler(filters.COMMAND, unknown)
+
     application.add_handler(conv_handler)
+    application.add_handler(reply_handler)
+    application.add_handler(done_handler)
+    application.add_handler(unknown_handler)
+    
     application.run_polling()
