@@ -1,6 +1,6 @@
 import re
 import os
-import datetime
+# import datetime
 import logging
 
 from pyairtable import Table
@@ -36,13 +36,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=reply_markup)
     return START_ROUTES
 
-async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send the alarm message."""
-    job = context.job
-    await context.bot.send_message(job.chat_id, text=f"Beep! {job.data} seconds are over!")
+# async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
+#     """Send the alarm message."""
+#     job = context.job
+#     await context.bot.send_message(job.chat_id, text=f"Beep! {job.data} seconds are over!")
 
-async def set_alarm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    context.job_queue.run_once(alarm, float(context.args[0]), chat_id=update.effective_chat.id, name=str(update.effective_chat.id), data=float(context.args[0]))
+# async def set_alarm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+#     now = datetime.datetime.now()
+#     delta = datetime.timedelta(seconds=10)
+#     time = now + delta
+#     context.job_queue.run_once(alarm, time, chat_id=update.effective_chat.id, name=str(update.effective_chat.id), data=time)
 
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.message.from_user
@@ -87,28 +90,28 @@ async def fuck_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     flatmate = update.callback_query.from_user
     await context.bot.send_photo(
         chat_id=update.effective_chat.id, 
-        caption=f'@{flatmate.first_name } іді нахуй', 
+        caption=f'@{flatmate.first_name } іді нахуй',
         photo="https://s3-eu-central-1.amazonaws.com/hromadskeprod/pictures/files/000/032/877/original/05b6107d0a8b15719a4dcee9bc93bd1d.jpg?1504796052")
 
 async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Listen to key words and answer"""
     phrases = [
-        # (['+'], 'https://www.shitpostbot.com/img/templates/goatse-5807e8e8431a5.png'),
+        (['+'], 'https://imgur.com/a/znlSLjw'),
         (['собака'], 'собакаааа, вона краще ніж ви люди, людям довіряти не можно, от собаки вони найкращі...'),
         (['чорт'], 'а що одразу чорт????'),
         (['пепсі'], 'кок кола краще'),
         (['кола'], 'пепсі краще'),
         (['так'], 'піздак'),
-        (['бот'], 'хуйбот'),
+        (['бот'], 'а? що вже бот то?'),
         (['сало'], 'а борщ?'),
         (['борщ'], 'а сало?'),
-        (['магазин'], 'купить мені пииииввааааа'),
+        (['магазин', 'новус', 'сільпо', 'кишеня', 'фора'], 'купить мені пииииввааааа'),
         (['сука'], 'https://uk.wikipedia.org/wiki/%D0%9C%D1%96%D0%B7%D0%BE%D0%B3%D1%96%D0%BD%D1%96%D1%8F'),
         (['рашка'], 'не "рашка", а пидорахия блинолопатная скотоублюдия, свинособачий хуйлостан, рабские вымираты и нефтедырное пынебабве'),
         (['хозяйка', 'хозяйки', 'хозяйку'], 'Я піздолів, жополіз хозяйки, буду унітазом-мочеглотом. Хочу лізати волосату, немиту пізду під час її менструації. Якщо хозяйка трахалась — то тільки після ретельного митья. Хочу пити мочу і глотать всі виділення хозяйки. Вилижу жопу у анусі.'),
     ]
 
-    message = re.findall(r'\b\S+\b', str(update.message.text).lower())
+    message = re.findall(r'\b\S+\b|\+', str(update.message.text).lower())
     for phrase in phrases:
         for key in phrase[0]:
             if key in message:
@@ -150,8 +153,8 @@ if __name__ == '__main__':
     whois_cleaning_handler = CommandHandler('whois_cleaning', whois_cleaning)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
-    application.add_handler(CommandHandler('alarm', alarm))
-    application.add_handler(CommandHandler('set_alarm', set_alarm))
+    # application.add_handler(CommandHandler('alarm', alarm))
+    # application.add_handler(CommandHandler('set_alarm', set_alarm))
     application.add_handler(conv_handler)
     application.add_handler(reply_handler)
     application.add_handler(done_handler)
