@@ -1,6 +1,6 @@
 import re
 import os
-# import datetime
+import datetime
 import logging
 
 from pyairtable import Table
@@ -20,10 +20,17 @@ table = Table(AIRTABLE_TOKEN, AIRTABLE_ID, 'flatmates')
 START_ROUTES, END_ROUTES = range(2)
 WHOIS_CLEANING, ADD_FLATMATE, FUCK_OFF = range(3)
 
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Send message on `/start`."""
     user = update.message.from_user
+    chat_id = update.effective_message.chat_id
     logger.info("User %s started the conversation.", user.username)
+
+    if not context.job_queue.get_jobs_by_name('daily_routine'):
+        time = datetime.time(hour=8, minute=0)
+        context.job_queue.run_daily(daily_routine, time=time, chat_id=chat_id, name='daily_routine', days=(0,1,2,3,4,5,6))
+    
     keyboard = [
         [InlineKeyboardButton("🧻 Хто прибирає?", callback_data=str(WHOIS_CLEANING))],
         [InlineKeyboardButton("📝 Записатися на прибирання", callback_data=str(ADD_FLATMATE))],
@@ -36,16 +43,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=reply_markup)
     return START_ROUTES
 
-# async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
-#     """Send the alarm message."""
-#     job = context.job
-#     await context.bot.send_message(job.chat_id, text=f"Beep! {job.data} seconds are over!")
 
-# async def set_alarm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-#     now = datetime.datetime.now()
-#     delta = datetime.timedelta(seconds=10)
-#     time = now + delta
-#     context.job_queue.run_once(alarm, time, chat_id=update.effective_chat.id, name=str(update.effective_chat.id), data=time)
+async def daily_routine(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send daily message based on weekday"""
+    job = context.job
+    weekday = datetime.datetime.today().weekday()
+    weekdays = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя']
+    message = f'Добрий ранок, сьогодні {weekdays[weekday].lower()}!'
+
+    await context.bot.send_message(job.chat_id, text=message)
 
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.message.from_user
@@ -129,6 +135,7 @@ async def post_init(application: ApplicationBuilder) -> None:
     ])
 
 if __name__ == '__main__':
+    logger.info("🖤 Flatmate Telegram Bot")
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 
     conv_handler = ConversationHandler(
@@ -153,8 +160,6 @@ if __name__ == '__main__':
     whois_cleaning_handler = CommandHandler('whois_cleaning', whois_cleaning)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
-    # application.add_handler(CommandHandler('alarm', alarm))
-    # application.add_handler(CommandHandler('set_alarm', set_alarm))
     application.add_handler(conv_handler)
     application.add_handler(reply_handler)
     application.add_handler(done_handler)
