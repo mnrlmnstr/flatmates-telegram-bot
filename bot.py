@@ -2,6 +2,7 @@ import re
 import os
 import datetime
 import logging
+import requests
 
 from pyairtable import Table
 from pyairtable.formulas import match
@@ -20,6 +21,48 @@ table = Table(AIRTABLE_TOKEN, AIRTABLE_ID, 'flatmates')
 START_ROUTES, END_ROUTES = range(2)
 WHOIS_CLEANING, ADD_FLATMATE, FUCK_OFF = range(3)
 
+wmo_to_text = [
+    ([0],               '🌞 Чисте небо'),
+    ([1, 2, 3],         '👻 Переважно ясно, похмуро'),
+    ([45, 48],          '😶‍🌫️ Туман'),
+    ([51, 53, 55],      '🌧 Мряка'),
+    ([56, 57],          '🥶 Крижана мряка'),
+    ([61, 63, 65],      '☔️ Дощ'),
+    ([66, 67],          '🥶 Крижаний дощ'),
+    ([71, 73, 75, 77],  '☃️ Снігопад'),
+    ([80, 81, 82],      '💧Злива💧'),
+    ([85, 86],          '❄️Сильний сніг❄️'),
+    ([95],              '🌩 Можливо гроза'),
+    ([96, 99],          '⚡️ Гроза'),
+]
+
+def get_forecast():
+    url = 'https://api.open-meteo.com/v1/forecast/'
+    params = {
+        'latitude': '50.45',
+        'longitude': '30.52',
+        'daily': ['weathercode', 'temperature_2m_max', 'temperature_2m_min', 'apparent_temperature_max', 'apparent_temperature_min'],
+        'timezone': 'Europe/Berlin'
+    }
+    r = requests.get(url, params=params)
+    if r.status_code is 200:
+        print(r.json())
+        fc = r.json()['daily']
+        weathercode = fc['weathercode'][0]
+        max_temp = round(fc['temperature_2m_max'][0])
+        min_temp = round(fc['temperature_2m_min'][0])
+        feels_like_max = round(fc['apparent_temperature_max'][0])
+        feels_like_min = round(fc['apparent_temperature_min'][0])
+
+        for wmo in wmo_to_text:
+            if weathercode in wmo[0]:
+                weathercode = wmo[1]
+
+        message = f'{weathercode}\nH:{max_temp}° L:{min_temp}°\n\nВідчувається:\nH:{feels_like_max}° L:{feels_like_min}°'    
+    else:
+        message = f'No weather data\n{r.status_code}{r.text}'
+
+    return message
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Send message on `/start`."""
@@ -49,8 +92,7 @@ async def daily_routine(context: ContextTypes.DEFAULT_TYPE) -> None:
     job = context.job
     weekday = datetime.datetime.today().weekday()
     weekdays = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя']
-    message = f'Добрий ранок, сьогодні {weekdays[weekday].lower()}!'
-
+    message = f'Привіт! Cьогодні {weekdays[weekday].lower()}!\n\n{get_forecast()}'
     await context.bot.send_message(job.chat_id, text=message)
 
 async def daily(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
@@ -130,6 +172,11 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             if key in message:
                 await update.message.reply_text(phrase[1])
 
+
+async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show forecast"""
+    await update.message.reply_text(get_forecast())
+
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Answer to unknown command"""
     await update.message.reply_text('Що це за команда? Ти що дебіл?')
@@ -166,6 +213,7 @@ if __name__ == '__main__':
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
     done_handler = CommandHandler('done', done)
     daily_handler = CommandHandler('daily', daily)
+    forecast_handler = CommandHandler('forecast', forecast)
     whois_cleaning_handler = CommandHandler('whois_cleaning', whois_cleaning)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
@@ -173,6 +221,7 @@ if __name__ == '__main__':
     application.add_handler(reply_handler)
     application.add_handler(done_handler)
     application.add_handler(daily_handler)
+    application.add_handler(forecast_handler)
     application.add_handler(whois_cleaning_handler)
     application.add_handler(unknown_handler)
     
