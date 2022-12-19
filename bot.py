@@ -165,13 +165,14 @@ if __name__ == '__main__':
 
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
     done_handler = CommandHandler('done', done)
-    done_handler = CommandHandler('daily', daily)
+    daily_handler = CommandHandler('daily', daily)
     whois_cleaning_handler = CommandHandler('whois_cleaning', whois_cleaning)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
     application.add_handler(conv_handler)
     application.add_handler(reply_handler)
     application.add_handler(done_handler)
+    application.add_handler(daily_handler)
     application.add_handler(whois_cleaning_handler)
     application.add_handler(unknown_handler)
     
