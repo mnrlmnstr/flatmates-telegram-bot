@@ -53,6 +53,13 @@ async def daily_routine(context: ContextTypes.DEFAULT_TYPE) -> None:
 
     await context.bot.send_message(job.chat_id, text=message)
 
+async def daily(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
+    context.job_queue.run_once(daily_routine, 0, chat_id=update.effective_message.chat_id)
+    await context.bot.send_photo(
+        chat_id=update.effective_chat.id,
+        caption='Хуйовий день? От тобі кіт для настрою!',
+        photo=f'https://thiscatdoesnotexist.com/?ts={datetime.datetime.now()}')
+
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.message.from_user
     cleaner_record = table.first(formula=match({"isCleaning": True}))
@@ -132,6 +139,7 @@ async def post_init(application: ApplicationBuilder) -> None:
         ('start', 'Вітання та основні команди'),
         ('done', 'Я прибрався!'),
         ('whois_cleaning', 'Хто зараз прибирає?'),
+        ('daily', 'Що там сьогодні?'),
     ])
 
 if __name__ == '__main__':
@@ -157,6 +165,7 @@ if __name__ == '__main__':
 
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
     done_handler = CommandHandler('done', done)
+    done_handler = CommandHandler('daily', daily)
     whois_cleaning_handler = CommandHandler('whois_cleaning', whois_cleaning)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
