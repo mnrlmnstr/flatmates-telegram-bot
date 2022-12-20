@@ -37,46 +37,45 @@ wmo_to_text = [
     ([96, 99],          '⚡️ Гроза'),
 ]
 
+def get_text_by_wmo(code):
+    for wmo in wmo_to_text:
+        if code in wmo[0]:
+            return wmo[1]
+
 def get_war_stats():
+    """Get latest war stats"""
     url = 'https://russianwarship.rip/api/v1/statistics/latest'
     r = requests.get(url)
-
     if r.status_code == 200:
         stats = r.json()['data']
-        text = f"За сьогодні вмерло {stats['increase']['personnel_units']} русні, заголом здохло {stats['stats']['personnel_units']}"
+        return f"Повиздихало {stats['increase']['personnel_units']} русні, заголом здохло {stats['stats']['personnel_units']} 🐷🐶"
     else:
-        text = f'Нема інфи по русні - \n{r.status_code}{r.text}'
-    return text
+        return f'Нема інфи по русні - {r.status_code}'
 
 def get_forecast():
+    """Get meteo gorecast from Open Meteo for today"""
     url = 'https://api.open-meteo.com/v1/forecast/'
     params = {
         'latitude': '50.45',
         'longitude': '30.52',
-        'daily': ['weathercode', 'temperature_2m_max', 'temperature_2m_min', 'apparent_temperature_max', 'apparent_temperature_min'],
+        'daily': ['weathercode', 'temperature_2m_max', 'temperature_2m_min'],
         'timezone': 'Europe/Berlin'
     }
     r = requests.get(url, params=params)
     if r.status_code == 200:
         fc = r.json()['daily']
-        weathercode = fc['weathercode'][0]
-        max_temp = round(fc['temperature_2m_max'][0])
-        min_temp = round(fc['temperature_2m_min'][0])
-        feels_like_max = round(fc['apparent_temperature_max'][0])
-        feels_like_min = round(fc['apparent_temperature_min'][0])
-
-        for wmo in wmo_to_text:
-            if weathercode in wmo[0]:
-                weathercode = wmo[1]
-
-        message = f'{weathercode}\nH:{max_temp}° L:{min_temp}°\n\nВідчувається:\nH:{feels_like_max}° L:{feels_like_min}°'    
+        return f"{get_text_by_wmo(fc['weathercode'][0])}\nH:{round(fc['temperature_2m_max'][0])}° L:{round(fc['temperature_2m_min'][0])}°"    
     else:
-        message = f'No weather data\n{r.status_code}{r.text}'
+        return f'No weather data\n{r.status_code}{r.text}'
 
-    return message
+def digest_text():
+    """Digest message based on weekday"""
+    weekday = datetime.datetime.today().weekday()
+    weekdays = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя']
+    return f"Cьогодні {weekdays[weekday].lower()}.\n\n" + get_forecast() + "\n\n" + get_war_stats()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Send message on `/start`."""
+    """Command: show welcome message and important commands"""
     user = update.message.from_user
     logger.info("User %s started the conversation.", user.username)
     keyboard = [
@@ -91,26 +90,26 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=reply_markup)
     return START_ROUTES
 
-async def daily_routine(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send daily message based on weekday"""
-    weekday = datetime.datetime.today().weekday()
-    weekdays = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя']
-    forecast = get_forecast()
-    text = f'Привіт! Cьогодні {weekdays[weekday].lower()}!\n\n{forecast}'
+async def morning(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Callback that show digest at morning"""
+    text = 'Добрий ранок! 🫠\n\n' + digest_text()
     await context.bot.send_message(context.job.chat_id, text=text)
 
+async def digest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Command: show digest message and random cat"""
+    await context.bot.send_message(update.effective_chat.id, text=digest_text())
+    await random_cat(update, context)
+
 async def random_cat(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
+    """Command: show random cat"""
     await context.bot.send_photo(
         chat_id=update.effective_chat.id,
         caption='Хуйовий день? От тобі кіт для настрою!',
         photo=f'https://thiscatdoesnotexist.com/?ts={datetime.datetime.now()}')
 
-async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Manually show daily message"""
-    context.job_queue.run_once(daily_routine, 0, chat_id=update.effective_chat.id) #FIX ME
-    await random_cat(update, context)
-
+# Refactor
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Command: check up person who done with cleaning and choose next one"""
     user = update.message.from_user
     cleaner_record = table.first(formula=match({"isCleaning": True}))
     cleaner = cleaner_record['fields']['username']
@@ -128,7 +127,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(f'@{user.username} ти нащо прибрався, зараз не твоя черга?\n\nКлятий москась @{cleaner}, ти чому пропустив свою чергу? Будеш прибирати на наступному тижні.')
 
 async def add_flatmate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Add flatmate to the Airtable."""
+    """Command: Add flatmate to the Airtable."""
     text = ''
     flatmate = update.callback_query.from_user
     record = table.first(formula=match({"id": flatmate.id}))
@@ -143,13 +142,13 @@ async def add_flatmate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 async def whois_cleaning(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show flatmate who clean"""
+    """Command: Show flatmate who clean"""
     record = table.first(formula=match({"isCleaning": True}))
     username = record['fields']['username']
     await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Зараз черга @{username}')
 
 async def fuck_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """f o"""
+    """Command: bot has aggresive personality"""
     flatmate = update.callback_query.from_user
     await context.bot.send_photo(
         chat_id=update.effective_chat.id, 
@@ -181,15 +180,15 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 await update.message.reply_text(phrase[1])
 
 async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show forecast"""
+    """Command: show forecast"""
     await update.message.reply_text(get_forecast())
 
 async def war_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show war stats"""
+    """Command: show war stats"""
     await update.message.reply_text(get_war_stats())
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Answer to unknown command"""
+    """Command: answer to unknown command"""
     await update.message.reply_text('Що це за команда? Ти що дебіл?')
 
 async def post_init(application: ApplicationBuilder) -> None:
@@ -197,7 +196,7 @@ async def post_init(application: ApplicationBuilder) -> None:
         ('start', 'Вітання та основні команди'),
         ('done', 'Я прибрався!'),
         ('whois_cleaning', 'Хто зараз прибирає?'),
-        ('daily', 'Що там сьогодні?'),
+        ('digest', 'Що там сьогодні?'),
         ('forecast', 'Прогноз погоди'),
         ('random_cat', 'Показати рандомну кітцю'),
         ('war_stats', 'Показати кількість мертвої русні'),
@@ -224,11 +223,11 @@ if __name__ == '__main__':
         fallbacks=[CommandHandler("start", start)],
     )
 
-    application.job_queue.run_daily(daily_routine, time=datetime.time(hour=8, minute=0), chat_id=TELEGRAM_CHAT_ID, name='daily_routine', days=(0,1,2,3,4,5,6))    
+    application.job_queue.run_daily(morning, time=datetime.time(hour=9, minute=0), chat_id=TELEGRAM_CHAT_ID, name='morning message', days=(0,1,2,3,4,5,6))    
 
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
     done_handler = CommandHandler('done', done)
-    daily_handler = CommandHandler('daily', daily)
+    digest_handler = CommandHandler('digest', digest)
     random_cat_handler = CommandHandler('random_cat', random_cat)
     forecast_handler = CommandHandler('forecast', forecast)
     war_stats_handler = CommandHandler('war_stats', war_stats)
@@ -238,7 +237,7 @@ if __name__ == '__main__':
     application.add_handler(conv_handler)
     application.add_handler(reply_handler)
     application.add_handler(done_handler)
-    application.add_handler(daily_handler)
+    application.add_handler(digest_handler)
     application.add_handler(random_cat_handler)
     application.add_handler(forecast_handler)
     application.add_handler(war_stats_handler)
