@@ -37,6 +37,17 @@ wmo_to_text = [
     ([96, 99],          '⚡️ Гроза'),
 ]
 
+def get_war_stats():
+    url = 'https://russianwarship.rip/api/v1/statistics/latest'
+    r = requests.get(url)
+
+    if r.status_code == 200:
+        stats = r.json()['data']
+        text = f"За сьогодні вмерло {stats['increase']['personnel_units']} русні, заголом здохло {stats['stats']['personnel_units']}"
+    else:
+        text = f'Нема інфи по русні - \n{r.status_code}{r.text}'
+    return text
+
 def get_forecast():
     url = 'https://api.open-meteo.com/v1/forecast/'
     params = {
@@ -169,10 +180,13 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             if key in message:
                 await update.message.reply_text(phrase[1])
 
-
 async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show forecast"""
     await update.message.reply_text(get_forecast())
+
+async def war_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show war stats"""
+    await update.message.reply_text(get_war_stats())
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Answer to unknown command"""
@@ -186,6 +200,7 @@ async def post_init(application: ApplicationBuilder) -> None:
         ('daily', 'Що там сьогодні?'),
         ('forecast', 'Прогноз погоди'),
         ('random_cat', 'Показати рандомну кітцю'),
+        ('war_stats', 'Показати кількість мертвої русні'),
     ])
 
 if __name__ == '__main__':
@@ -216,6 +231,7 @@ if __name__ == '__main__':
     daily_handler = CommandHandler('daily', daily)
     random_cat_handler = CommandHandler('random_cat', random_cat)
     forecast_handler = CommandHandler('forecast', forecast)
+    war_stats_handler = CommandHandler('war_stats', war_stats)
     whois_cleaning_handler = CommandHandler('whois_cleaning', whois_cleaning)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
@@ -225,6 +241,7 @@ if __name__ == '__main__':
     application.add_handler(daily_handler)
     application.add_handler(random_cat_handler)
     application.add_handler(forecast_handler)
+    application.add_handler(war_stats_handler)
     application.add_handler(whois_cleaning_handler)
     application.add_handler(unknown_handler)
     
