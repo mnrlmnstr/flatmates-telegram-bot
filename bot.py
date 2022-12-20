@@ -9,9 +9,10 @@ from pyairtable.formulas import match
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, ConversationHandler, CallbackQueryHandler, MessageHandler, filters
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-AIRTABLE_TOKEN = os.getenv("AIRTABLE_TOKEN")
-AIRTABLE_ID = os.getenv("AIRTABLE_ID")
+AIRTABLE_ID = os.getenv('AIRTABLE_ID')
+AIRTABLE_TOKEN = os.getenv('AIRTABLE_TOKEN')
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -45,8 +46,7 @@ def get_forecast():
         'timezone': 'Europe/Berlin'
     }
     r = requests.get(url, params=params)
-    if r.status_code is 200:
-        print(r.json())
+    if r.status_code == 200:
         fc = r.json()['daily']
         weathercode = fc['weathercode'][0]
         max_temp = round(fc['temperature_2m_max'][0])
@@ -67,13 +67,7 @@ def get_forecast():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Send message on `/start`."""
     user = update.message.from_user
-    chat_id = update.effective_message.chat_id
     logger.info("User %s started the conversation.", user.username)
-
-    if not context.job_queue.get_jobs_by_name('daily_routine'):
-        time = datetime.time(hour=8, minute=0)
-        context.job_queue.run_daily(daily_routine, time=time, chat_id=chat_id, name='daily_routine', days=(0,1,2,3,4,5,6))
-    
     keyboard = [
         [InlineKeyboardButton("🧻 Хто прибирає?", callback_data=str(WHOIS_CLEANING))],
         [InlineKeyboardButton("📝 Записатися на прибирання", callback_data=str(ADD_FLATMATE))],
@@ -86,21 +80,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=reply_markup)
     return START_ROUTES
 
-
 async def daily_routine(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send daily message based on weekday"""
-    job = context.job
     weekday = datetime.datetime.today().weekday()
     weekdays = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя']
-    message = f'Привіт! Cьогодні {weekdays[weekday].lower()}!\n\n{get_forecast()}'
-    await context.bot.send_message(job.chat_id, text=message)
+    forecast = get_forecast()
+    text = f'Привіт! Cьогодні {weekdays[weekday].lower()}!\n\n{forecast}'
+    await context.bot.send_message(context.job.chat_id, text=text)
 
-async def daily(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
-    context.job_queue.run_once(daily_routine, 0, chat_id=update.effective_message.chat_id)
+async def random_cat(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
     await context.bot.send_photo(
         chat_id=update.effective_chat.id,
         caption='Хуйовий день? От тобі кіт для настрою!',
         photo=f'https://thiscatdoesnotexist.com/?ts={datetime.datetime.now()}')
+
+async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Manually show daily message"""
+    context.job_queue.run_once(daily_routine, 0, chat_id=update.effective_chat.id) #FIX ME
+    await random_cat(update, context)
 
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.message.from_user
@@ -187,6 +184,8 @@ async def post_init(application: ApplicationBuilder) -> None:
         ('done', 'Я прибрався!'),
         ('whois_cleaning', 'Хто зараз прибирає?'),
         ('daily', 'Що там сьогодні?'),
+        ('forecast', 'Прогноз погоди'),
+        ('random_cat', 'Показати рандомну кітцю'),
     ])
 
 if __name__ == '__main__':
@@ -210,9 +209,12 @@ if __name__ == '__main__':
         fallbacks=[CommandHandler("start", start)],
     )
 
+    application.job_queue.run_daily(daily_routine, time=datetime.time(hour=8, minute=0), chat_id=TELEGRAM_CHAT_ID, name='daily_routine', days=(0,1,2,3,4,5,6))    
+
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
     done_handler = CommandHandler('done', done)
     daily_handler = CommandHandler('daily', daily)
+    random_cat_handler = CommandHandler('random_cat', random_cat)
     forecast_handler = CommandHandler('forecast', forecast)
     whois_cleaning_handler = CommandHandler('whois_cleaning', whois_cleaning)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
@@ -221,6 +223,7 @@ if __name__ == '__main__':
     application.add_handler(reply_handler)
     application.add_handler(done_handler)
     application.add_handler(daily_handler)
+    application.add_handler(random_cat_handler)
     application.add_handler(forecast_handler)
     application.add_handler(whois_cleaning_handler)
     application.add_handler(unknown_handler)
