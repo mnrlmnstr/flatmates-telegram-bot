@@ -3,6 +3,8 @@
 - Remind for appartments cleaning
 - Hate you
 - Make some jokes
+- Show war stats
+- Show weather forecast
 
 ## Setup
 ### Create & activate virtual environment
@@ -20,6 +22,7 @@ pip install -r requirements.txt
 ### Setup tokens in env
 ```
 TELEGRAM_TOKEN
+TELEGRAM_CHAT_ID
 AIRTABLE_TOKEN
 AIRTABLE_ID
 ```

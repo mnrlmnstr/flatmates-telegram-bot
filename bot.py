@@ -107,7 +107,6 @@ async def random_cat(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
         caption='Хуйовий день? От тобі кіт для настрою!',
         photo=f'https://thiscatdoesnotexist.com/?ts={datetime.datetime.now()}')
 
-# Refactor
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: check up person who done with cleaning and choose next one"""
     user = update.message.from_user
@@ -137,7 +136,6 @@ async def add_flatmate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     else:
         table.create({'id': flatmate.id, 'username': flatmate.username})
         text = f'Записав @{flatmate.username} до рабів цієї квартири.'
-
 
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
@@ -223,6 +221,7 @@ if __name__ == '__main__':
         fallbacks=[CommandHandler("start", start)],
     )
 
+    # Show digest at every morning 9:00 utc
     application.job_queue.run_daily(morning, time=datetime.time(hour=9, minute=0), chat_id=TELEGRAM_CHAT_ID, name='morning message', days=(0,1,2,3,4,5,6))    
 
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
