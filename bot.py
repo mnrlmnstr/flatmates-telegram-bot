@@ -187,7 +187,6 @@ async def fuck_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Listen to key words and answer"""
     phrases = [
-        (['+'], 'https://imgur.com/a/znlSLjw'),
         (['собака'], 'собакаааа, вона краще ніж ви люди, людям довіряти не можно, от собаки вони найкращі...'),
         (['чорт'], 'а що одразу чорт????'),
         (['пепсі'], 'кок кола краще'),
@@ -213,6 +212,9 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 message = re.findall(r'\b\S+\b', str(update.message.text).lower())
                 if key in message:
                     await update.message.reply_text(phrase[1])
+    
+    if '+' in update.message.text:
+        await update.message.reply_text('https://imgur.com/a/znlSLjw')
 
 async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show forecast"""
