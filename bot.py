@@ -183,6 +183,7 @@ async def fuck_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         caption=f'@{flatmate.first_name } іді нахуй',
         photo="https://s3-eu-central-1.amazonaws.com/hromadskeprod/pictures/files/000/032/877/original/05b6107d0a8b15719a4dcee9bc93bd1d.jpg?1504796052")
 
+# TODO: Refactor 🙈
 async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Listen to key words and answer"""
     phrases = [
@@ -191,6 +192,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         (['чорт'], 'а що одразу чорт????'),
         (['пепсі'], 'кок кола краще'),
         (['кола'], 'пепсі краще'),
+        (['слава україні', 'слава украине'], 'Героям Слава'),
         (['так'], 'піздак'),
         (['бот'], 'а? що вже бот то?'),
         (['сало'], 'а борщ?'),
@@ -201,11 +203,16 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         (['хозяйка', 'хозяйки', 'хозяйку'], 'Я піздолів, жополіз хозяйки, буду унітазом-мочеглотом. Хочу лізати волосату, немиту пізду під час її менструації. Якщо хозяйка трахалась — то тільки після ретельного митья. Хочу пити мочу і глотать всі виділення хозяйки. Вилижу жопу у анусі.'),
     ]
 
-    message = re.findall(r'\b\S+\b|\+', str(update.message.text).lower())
     for phrase in phrases:
         for key in phrase[0]:
-            if key in message:
-                await update.message.reply_text(phrase[1])
+            if re.match(r'\b\S+\s\S+\b', key):
+                message = re.findall(r'\b\S+\s\S+\b', str(update.message.text).lower())
+                if key in message:
+                    await update.message.reply_text(phrase[1])
+            elif re.match(r'\b\S+\b', key):
+                message = re.findall(r'\b\S+\b', str(update.message.text).lower())
+                if key in message:
+                    await update.message.reply_text(phrase[1])
 
 async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show forecast"""
