@@ -43,7 +43,7 @@ def get_cleaner_username():
     username = record['fields']['username']
     return username
 
-def get_text_by_wmo(code):
+def text_by_wmo(code):
     for wmo in wmo_to_text:
         if code in wmo[0]:
             return wmo[1]
@@ -84,7 +84,7 @@ def get_forecast():
     r = requests.get(url, params=params)
     if r.status_code == 200:
         fc = r.json()['daily']
-        return f"{get_text_by_wmo(fc['weathercode'][0])}\nH:{round(fc['temperature_2m_max'][0])}° L:{round(fc['temperature_2m_min'][0])}°"    
+        return f"{text_by_wmo(fc['weathercode'][0])}\nH:{round(fc['temperature_2m_max'][0])}° L:{round(fc['temperature_2m_min'][0])}°"    
     else:
         return f'No weather data\n{r.status_code}{r.text}'
 
@@ -215,6 +215,10 @@ async def war_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show war stats"""
     await update.message.reply_text(get_war_stats())
 
+async def chat_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Command: show chat information"""
+    await update.message.reply_text(f'chat_id: {update.effective_chat.id}')
+
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: answer to unknown command"""
     await update.message.reply_text('Що це за команда? Ти що дебіл?')
@@ -260,6 +264,7 @@ if __name__ == '__main__':
     random_cat_handler = CommandHandler('random_cat', random_cat)
     forecast_handler = CommandHandler('forecast', forecast)
     war_stats_handler = CommandHandler('war_stats', war_stats)
+    chat_info_handler = CommandHandler('chat_info', chat_info)
     whois_cleaning_handler = CommandHandler('whois_cleaning', whois_cleaning)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
@@ -270,6 +275,7 @@ if __name__ == '__main__':
     application.add_handler(random_cat_handler)
     application.add_handler(forecast_handler)
     application.add_handler(war_stats_handler)
+    application.add_handler(chat_info_handler)
     application.add_handler(whois_cleaning_handler)
     application.add_handler(unknown_handler)
     
