@@ -37,6 +37,11 @@ wmo_to_text = [
     ([96, 99],          '⚡️ Гроза'),
 ]
 
+def get_cleaner_username():
+    record = table.first(formula=match({"isCleaning": True}))
+    username = record['fields']['username']
+    return username
+
 def get_text_by_wmo(code):
     for wmo in wmo_to_text:
         if code in wmo[0]:
@@ -48,7 +53,10 @@ def get_war_stats():
     r = requests.get(url)
     if r.status_code == 200:
         stats = r.json()['data']
-        return f"Повиздихало {stats['increase']['personnel_units']} русні, заголом здохло {stats['stats']['personnel_units']} 🐷🐶"
+        return (
+            f"{stats['day']}й день війни.\n"
+            f"За вчора повиздихало {stats['increase']['personnel_units']} русні, заголом було вбито {stats['stats']['personnel_units']} 🐷🐶"
+        )
     else:
         return f'Нема інфи по русні - {r.status_code}'
 
@@ -71,8 +79,16 @@ def get_forecast():
 def digest_text():
     """Digest message based on weekday"""
     weekday = datetime.datetime.today().weekday()
-    weekdays = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя']
-    return f"Cьогодні {weekdays[weekday].lower()}.\n\n" + get_forecast() + "\n\n" + get_war_stats()
+    weekdays = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 
+                'Пʼятниця', 'Субота', 'Неділя']
+
+    text = ''
+    if weekday == 2:
+        text += '@mnrlmnstr полий квіти!\n'
+    elif weekday in [5, 6]:
+        text += f'@{get_cleaner_username()} твоя черга прибирати!\n'
+    
+    return f"Cьогодні {weekdays[weekday].lower()}.\n\n{get_forecast()}\n\n{get_war_stats()}\n\n{text}"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Command: show welcome message and important commands"""
@@ -107,7 +123,6 @@ async def random_cat(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
         caption='Хуйовий день? От тобі кіт для настрою!',
         photo=f'https://thiscatdoesnotexist.com/?ts={datetime.datetime.now()}')
 
-# Refactor
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: check up person who done with cleaning and choose next one"""
     user = update.message.from_user
@@ -138,14 +153,11 @@ async def add_flatmate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         table.create({'id': flatmate.id, 'username': flatmate.username})
         text = f'Записав @{flatmate.username} до рабів цієї квартири.'
 
-
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 async def whois_cleaning(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: Show flatmate who clean"""
-    record = table.first(formula=match({"isCleaning": True}))
-    username = record['fields']['username']
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Зараз черга @{username}')
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Зараз черга @{get_cleaner_username()}')
 
 async def fuck_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: bot has aggresive personality"""
@@ -223,6 +235,7 @@ if __name__ == '__main__':
         fallbacks=[CommandHandler("start", start)],
     )
 
+    # Show digest at every morning 9:00 utc
     application.job_queue.run_daily(morning, time=datetime.time(hour=9, minute=0), chat_id=TELEGRAM_CHAT_ID, name='morning message', days=(0,1,2,3,4,5,6))    
 
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
