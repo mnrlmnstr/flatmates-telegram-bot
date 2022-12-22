@@ -3,6 +3,7 @@ import os
 import datetime
 import logging
 import requests
+from functools import wraps
 
 from pyairtable import Table
 from pyairtable.formulas import match
@@ -46,6 +47,17 @@ def get_text_by_wmo(code):
     for wmo in wmo_to_text:
         if code in wmo[0]:
             return wmo[1]
+
+def restricted(func):
+    """Restrict usage of func to allowed chat only"""
+    @wraps(func)
+    async def wrapped(update, context, *args, **kwargs):
+        chat_id = update.effective_chat.id
+        if str(chat_id) != str(TELEGRAM_CHAT_ID):
+            await context.bot.send_message(chat_id, text='Іди нахуй, ці команди тіки для хозяїв!')
+            return
+        return await func(update, context, *args, **kwargs)
+    return wrapped
 
 def get_war_stats():
     """Get latest war stats"""
@@ -123,6 +135,7 @@ async def random_cat(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
         caption='Хуйовий день? От тобі кіт для настрою!',
         photo=f'https://thiscatdoesnotexist.com/?ts={datetime.datetime.now()}')
 
+@restricted
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: check up person who done with cleaning and choose next one"""
     user = update.message.from_user
@@ -141,6 +154,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         await update.message.reply_text(f'@{user.username} ти нащо прибрався, зараз не твоя черга?\n\nКлятий москась @{cleaner}, ти чому пропустив свою чергу? Будеш прибирати на наступному тижні.')
 
+@restricted
 async def add_flatmate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: Add flatmate to the Airtable."""
     text = ''
@@ -155,9 +169,11 @@ async def add_flatmate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
+@restricted
 async def whois_cleaning(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: Show flatmate who clean"""
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Зараз черга @{get_cleaner_username()}')
+    username = get_cleaner_username()
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Зараз черга @{username}')
 
 async def fuck_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: bot has aggresive personality"""
