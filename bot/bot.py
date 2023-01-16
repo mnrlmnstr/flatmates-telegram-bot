@@ -148,7 +148,7 @@ async def fuck_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: bot has aggresive personality"""
     flatmate = update.callback_query.from_user
     await context.bot.send_photo(
-        chat_id=update.effective_chat.id, 
+        chat_id=update.effective_chat.id,
         caption=f'@{flatmate.first_name } іді нахуй',
         photo="https://s3-eu-central-1.amazonaws.com/hromadskeprod/pictures/files/000/032/877/original/05b6107d0a8b15719a4dcee9bc93bd1d.jpg?1504796052")
 
@@ -179,7 +179,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 message = re.findall(r'\b\S+\b', str(update.message.text).lower())
                 if key in message:
                     await update.message.reply_text(phrase[1])
-            elif key in update.message.text and not re.match(r'^\b\S+\b$', key):
+            elif re.search(key, update.message.text, re.IGNORECASE) and not re.match(r'^\b\S+\b$', key):
                 await update.message.reply_text(phrase[1])
     
     if '+' in update.message.text:
