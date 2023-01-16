@@ -1,14 +1,21 @@
 import re
 import os
+import mimetypes
 import datetime
 import logging
-import requests
-from functools import wraps
+import random
 
+from functools import wraps
 from pyairtable import Table
 from pyairtable.formulas import match
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, ConversationHandler, CallbackQueryHandler, MessageHandler, filters
+
+from telegram import File, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, ConversationHandler, CallbackQueryHandler, \
+    MessageHandler, filters
+
+from bot.s3 import upload_file as s3_upload_file, list_files as s3_list_files, get_file_obj as s3_get_file_obj
+from bot.weather import get_forecast
+from bot.war_stats import get_war_stats
 
 AIRTABLE_ID = os.getenv('AIRTABLE_ID')
 AIRTABLE_TOKEN = os.getenv('AIRTABLE_TOKEN')
@@ -23,30 +30,12 @@ table = Table(AIRTABLE_TOKEN, AIRTABLE_ID, 'flatmates')
 START_ROUTES, END_ROUTES = range(2)
 WHOIS_CLEANING, ADD_FLATMATE, FUCK_OFF = range(3)
 
-wmo_to_text = [
-    ([0],               '🌞 Чисте небо'),
-    ([1, 2, 3],         '👻 Переважно ясно, похмуро'),
-    ([45, 48],          '😶‍🌫️ Туман'),
-    ([51, 53, 55],      '🌧 Мряка'),
-    ([56, 57],          '🥶 Крижана мряка'),
-    ([61, 63, 65],      '☔️ Дощ'),
-    ([66, 67],          '🥶 Крижаний дощ'),
-    ([71, 73, 75, 77],  '☃️ Снігопад'),
-    ([80, 81, 82],      '💧Злива💧'),
-    ([85, 86],          '❄️Сильний сніг❄️'),
-    ([95],              '🌩 Можливо гроза'),
-    ([96, 99],          '⚡️ Гроза'),
-]
 
 def get_cleaner_username():
     record = table.first(formula=match({"isCleaning": True}))
     username = record['fields']['username']
     return username
 
-def text_by_wmo(code):
-    for wmo in wmo_to_text:
-        if code in wmo[0]:
-            return wmo[1]
 
 def restricted(func):
     """Restrict usage of func to allowed chat only"""
@@ -59,34 +48,6 @@ def restricted(func):
         return await func(update, context, *args, **kwargs)
     return wrapped
 
-def get_war_stats():
-    """Get latest war stats"""
-    url = 'https://russianwarship.rip/api/v1/statistics/latest'
-    r = requests.get(url)
-    if r.status_code == 200:
-        stats = r.json()['data']
-        return (
-            f"{stats['day']}й день війни.\n"
-            f"За вчора повиздихало {stats['increase']['personnel_units']} русні, заголом було вбито {stats['stats']['personnel_units']} 🐷🐶"
-        )
-    else:
-        return f'Нема інфи по русні - {r.status_code}'
-
-def get_forecast():
-    """Get meteo gorecast from Open Meteo for today"""
-    url = 'https://api.open-meteo.com/v1/forecast/'
-    params = {
-        'latitude': '50.45',
-        'longitude': '30.52',
-        'daily': ['weathercode', 'temperature_2m_max', 'temperature_2m_min'],
-        'timezone': 'Europe/Berlin'
-    }
-    r = requests.get(url, params=params)
-    if r.status_code == 200:
-        fc = r.json()['daily']
-        return f"{text_by_wmo(fc['weathercode'][0])}\nH:{round(fc['temperature_2m_max'][0])}° L:{round(fc['temperature_2m_min'][0])}°"    
-    else:
-        return f'No weather data\n{r.status_code}{r.text}'
 
 def digest_text():
     """Digest message based on weekday"""
@@ -102,6 +63,7 @@ def digest_text():
     
     return f"Cьогодні {weekdays[weekday].lower()}.\n\n{get_forecast()}\n\n{get_war_stats()}\n\n{text}"
 
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Command: show welcome message and important commands"""
     user = update.message.from_user
@@ -109,7 +71,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     keyboard = [
         [InlineKeyboardButton("🧻 Хто прибирає?", callback_data=str(WHOIS_CLEANING))],
         [InlineKeyboardButton("📝 Записатися на прибирання", callback_data=str(ADD_FLATMATE))],
-        [InlineKeyboardButton("😘 Бот як ся маєш?", callback_data=str(FUCK_OFF))]
+        [InlineKeyboardButton("😘 Бот як ся маєш?", callback_data=str(FUCK_OFF))],
+        [InlineKeyboardButton("🗓 Дайджест", callback_data=str(FUCK_OFF))],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
@@ -118,15 +81,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=reply_markup)
     return START_ROUTES
 
+
 async def morning(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Callback that show digest at morning"""
     text = 'Добрий ранок! 🫠\n\n' + digest_text()
     await context.bot.send_message(context.job.chat_id, text=text)
 
+
 async def digest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: show digest message and random cat"""
     await context.bot.send_message(update.effective_chat.id, text=digest_text())
     await random_cat(update, context)
+
 
 async def random_cat(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
     """Command: show random cat"""
@@ -154,6 +120,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         await update.message.reply_text(f'@{user.username} ти нащо прибрався, зараз не твоя черга?\n\nКлятий москась @{cleaner}, ти чому пропустив свою чергу? Будеш прибирати на наступному тижні.')
 
+
 @restricted
 async def add_flatmate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: Add flatmate to the Airtable."""
@@ -169,11 +136,13 @@ async def add_flatmate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
+
 @restricted
 async def whois_cleaning(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: Show flatmate who clean"""
     username = get_cleaner_username()
     await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Зараз черга @{username}')
+
 
 async def fuck_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: bot has aggresive personality"""
@@ -183,19 +152,21 @@ async def fuck_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         caption=f'@{flatmate.first_name } іді нахуй',
         photo="https://s3-eu-central-1.amazonaws.com/hromadskeprod/pictures/files/000/032/877/original/05b6107d0a8b15719a4dcee9bc93bd1d.jpg?1504796052")
 
+
 # TODO: Refactor 🙈
 async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Listen to key words and answer"""
     phrases = [
         (['собака'], 'собакаааа, вона краще ніж ви люди, людям довіряти не можно, от собаки вони найкращі...'),
         (['чорт'], 'а що одразу чорт????'),
+        (['бот'], 'а? що вже бот то?'),
         (['пепсі'], 'кок кола краще'),
         (['кола'], 'пепсі краще'),
-        (['слава україні', 'слава украине'], 'Героям Слава'),
+        (['слава україні', 'слава украине'], 'Героям Слава!'),
         (['так'], 'піздак'),
-        (['бот'], 'а? що вже бот то?'),
         (['сало'], 'а борщ?'),
         (['борщ'], 'а сало?'),
+        (['згодна, згоден'], 'з чим? ти ж дурна людина, тобі далеко до робота'),
         (['магазин', 'новус', 'сільпо', 'кишеня', 'фора'], 'купить мені пииииввааааа'),
         (['сука'], 'https://uk.wikipedia.org/wiki/%D0%9C%D1%96%D0%B7%D0%BE%D0%B3%D1%96%D0%BD%D1%96%D1%8F'),
         (['рашка'], 'не "рашка", а пидорахия блинолопатная скотоублюдия, свинособачий хуйлостан, рабские вымираты и нефтедырное пынебабве'),
@@ -204,33 +175,74 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     for phrase in phrases:
         for key in phrase[0]:
-            if re.match(r'\b\S+\s\S+\b', key):
-                message = re.findall(r'\b\S+\s\S+\b', str(update.message.text).lower())
-                if key in message:
-                    await update.message.reply_text(phrase[1])
-            elif re.match(r'\b\S+\b', key):
+            if re.match(r'^\b\S+\b$', key):
                 message = re.findall(r'\b\S+\b', str(update.message.text).lower())
                 if key in message:
                     await update.message.reply_text(phrase[1])
+            elif key in update.message.text and not re.match(r'^\b\S+\b$', key):
+                await update.message.reply_text(phrase[1])
     
     if '+' in update.message.text:
-        await update.message.reply_text('https://imgur.com/a/znlSLjw')
+        files = s3_list_files('flatmatebot')
+        index = random.randrange(0, len(files))
+        photo = s3_get_file_obj(files[index]['key'])['Body'].read()
+        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=photo)
+
+
+async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('Відправь мені картинку, щоб зберегти.')
+    return 1
+
+
+async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    attachment = update.message.effective_attachment
+    if isinstance(attachment, list):
+        attachment = attachment[-1]
+
+    if attachment.file_size > 20 * 1024 * 1024:
+        await update.message.reply_html('Завелеку картинку суєш, хлопче.')
+        return
+
+    file = await attachment.get_file()
+
+    def get_original_file_name():
+        original_file_name = os.path.basename(file.file_path)
+        if hasattr(attachment, 'file_name'):
+            original_file_name = attachment.file_name
+        return original_file_name
+
+    file_name = get_original_file_name()
+    mime_type = mimetypes.MimeTypes().guess_type(file_name)[0]
+
+    tmp_file_name = f'tmp/{datetime.datetime.timestamp(datetime.datetime.now())}'
+    file = await File.download_to_drive(file, tmp_file_name)
+    s3_upload_file(file, 'flatmatebot', file_name, mime_type, 'public-read')
+    try:
+        os.unlink(tmp_file_name)
+    except Exception as e:
+        logger.error(e)
+    await update.message.reply_text(text='Зберіг!')
+
 
 async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show forecast"""
     await update.message.reply_text(get_forecast())
 
+
 async def war_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show war stats"""
     await update.message.reply_text(get_war_stats())
+
 
 async def chat_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show chat information"""
     await update.message.reply_text(f'chat_id: {update.effective_chat.id}')
 
+
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: answer to unknown command"""
     await update.message.reply_text('Що це за команда? Ти що дебіл?')
+
 
 async def post_init(application: ApplicationBuilder) -> None:
     await application.bot.set_my_commands([
@@ -243,7 +255,8 @@ async def post_init(application: ApplicationBuilder) -> None:
         ('war_stats', 'Показати кількість мертвої русні'),
     ])
 
-if __name__ == '__main__':
+
+def main():
     logger.info("🖤 Flatmate Telegram Bot")
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 
@@ -264,6 +277,15 @@ if __name__ == '__main__':
         fallbacks=[CommandHandler("start", start)],
     )
 
+    image_conv = ConversationHandler(
+        entry_points=[CommandHandler('image', image)],
+        states={
+            1: [MessageHandler(filters.PHOTO, image_handler)]
+        },
+        fallbacks=[image],
+        per_user=True,
+    )
+
     # Show digest at every morning 9:00 utc
     application.job_queue.run_daily(morning, time=datetime.time(hour=9, minute=0), chat_id=TELEGRAM_CHAT_ID, name='morning message', days=(0,1,2,3,4,5,6))    
 
@@ -278,6 +300,7 @@ if __name__ == '__main__':
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
     application.add_handler(conv_handler)
+    # application.add_handler(image_conv)
     application.add_handler(reply_handler)
     application.add_handler(done_handler)
     application.add_handler(digest_handler)
@@ -289,3 +312,6 @@ if __name__ == '__main__':
     application.add_handler(unknown_handler)
     
     application.run_polling()
+
+if __name__ == '__main__':
+    main()
