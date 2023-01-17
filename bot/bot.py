@@ -190,7 +190,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             elif re.search(key, update.message.text, re.IGNORECASE) and not re.match(r'^\b\S+\b$', key):
                 await update.message.reply_text(phrase[1])
 
-    if random.random() < 0.2 or '+' in update.message.text:
+    if random.random() < 0.125 or '+' in update.message.text:
         files = s3_list_files('flatmatebot')
         index = random.randrange(0, len(files))
         photo = s3_get_file_obj(files[index]['key'])['Body'].read()
