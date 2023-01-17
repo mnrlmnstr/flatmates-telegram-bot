@@ -202,6 +202,11 @@ async def add_meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return 1
 
 
+async def add_meme_done(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('Спробуй команду знов')
+    return ConversationHandler.END
+
+
 async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     attachment = update.message.effective_attachment
     if isinstance(attachment, list):
@@ -294,7 +299,7 @@ def main():
         states={
             1: [MessageHandler(filters.PHOTO, image_handler)]
         },
-        fallbacks=[MessageHandler(filters.TEXT, add_meme)],
+        fallbacks=[MessageHandler(filters.TEXT, add_meme_done)],
         per_user=True,
     )
 
