@@ -238,6 +238,7 @@ async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     except Exception as e:
         logger.error(e)
     await update.message.reply_text(text='Зберіг!')
+    return ConversationHandler.END
 
 
 async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
