@@ -101,6 +101,7 @@ async def random_cat(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
         caption='Хуйовий день? От тобі кіт для настрою!',
         photo=f'https://thiscatdoesnotexist.com/?ts={datetime.datetime.now()}')
 
+
 @restricted
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: check up person who done with cleaning and choose next one"""
@@ -188,12 +189,12 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     await update.message.reply_text(phrase[1])
             elif re.search(key, update.message.text, re.IGNORECASE) and not re.match(r'^\b\S+\b$', key):
                 await update.message.reply_text(phrase[1])
-    
-    if '+' in update.message.text:
+
+    if random.random() < 0.2 or '+' in update.message.text:
         files = s3_list_files('flatmatebot')
         index = random.randrange(0, len(files))
         photo = s3_get_file_obj(files[index]['key'])['Body'].read()
-        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=photo)
+        await update.message.reply_photo(photo=photo, reply_to_message_id=update.message.id)
 
 
 async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -289,6 +290,7 @@ def main():
         states={
             1: [MessageHandler(filters.PHOTO, image_handler)]
         },
+        fallbacks=[image],
         per_user=True,
     )
 
