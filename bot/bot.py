@@ -197,8 +197,8 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_photo(photo=photo, reply_to_message_id=update.message.id)
 
 
-async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Відправь мені картинку, щоб зберегти.')
+async def add_meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('Відправ мені міміс, щоб зберегти до колекції.')
     return 1
 
 
@@ -221,6 +221,9 @@ async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     file_name = get_original_file_name()
     mime_type = mimetypes.MimeTypes().guess_type(file_name)[0]
+
+    if not os.path.isdir('tmp'):
+        os.mkdir('tmp')
 
     tmp_file_name = f'tmp/{datetime.datetime.timestamp(datetime.datetime.now())}'
     file = await File.download_to_drive(file, tmp_file_name)
@@ -257,6 +260,7 @@ async def post_init(application: ApplicationBuilder) -> None:
         ('start', 'Вітання та основні команди'),
         ('done', 'Я прибрався!'),
         ('whois_cleaning', 'Хто зараз прибирає?'),
+        ('add_meme', 'Поповнити мемапедію Тараса'),
         ('digest', 'Що там сьогодні?'),
         ('forecast', 'Прогноз погоди'),
         ('random_cat', 'Показати рандомну кітцю'),
@@ -285,12 +289,12 @@ def main():
         fallbacks=[CommandHandler("start", start)],
     )
 
-    image_conv = ConversationHandler(
-        entry_points=[CommandHandler('image', image)],
+    add_meme_conv = ConversationHandler(
+        entry_points=[CommandHandler('add_meme', add_meme)],
         states={
             1: [MessageHandler(filters.PHOTO, image_handler)]
         },
-        fallbacks=[image],
+        fallbacks=[MessageHandler(filters.TEXT, add_meme)],
         per_user=True,
     )
 
@@ -309,7 +313,7 @@ def main():
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
     application.add_handler(conv_handler)
-    # application.add_handler(image_conv)
+    application.add_handler(add_meme_conv)
     application.add_handler(reply_handler)
     application.add_handler(done_handler)
     application.add_handler(digest_handler)
