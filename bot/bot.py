@@ -56,10 +56,10 @@ def digest_text():
                 'Пʼятниця', 'Субота', 'Неділя']
 
     text = ''
-    if weekday == 2:
-        text += '@mnrlmnstr полий квіти!\n'
-    elif weekday in [5, 6]:
-        text += f'@{get_cleaner_username()} твоя черга прибирати!\n'
+    # if weekday == 2:
+    #     text += '@mnrlmnstr полий квіти!\n'
+    # elif weekday in [5, 6]:
+    #     text += f'@{get_cleaner_username()} твоя черга прибирати!\n'
     
     return f"Cьогодні {weekdays[weekday].lower()}.\n\n{get_forecast()}\n\n{get_war_stats()}\n\n{text}"
 
@@ -69,8 +69,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.message.from_user
     logger.info("User %s started the conversation.", user.username)
     keyboard = [
-        [InlineKeyboardButton("🧻 Хто прибирає?", callback_data=str(WHOIS_CLEANING))],
-        [InlineKeyboardButton("📝 Записатися на прибирання", callback_data=str(ADD_FLATMATE))],
+        # [InlineKeyboardButton("🧻 Хто прибирає?", callback_data=str(WHOIS_CLEANING))],
+        # [InlineKeyboardButton("📝 Записатися на прибирання", callback_data=str(ADD_FLATMATE))],
         [InlineKeyboardButton("😘 Бот як ся маєш?", callback_data=str(FUCK_OFF))],
         [InlineKeyboardButton("🗓 Дайджест", callback_data=str(FUCK_OFF))],
     ]
@@ -197,6 +197,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_photo(photo=photo, reply_to_message_id=update.message.id)
 
 
+@restricted
 async def add_meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('Відправ мені міміс, щоб зберегти до колекції.')
     return 1
@@ -264,8 +265,8 @@ async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def post_init(application: ApplicationBuilder) -> None:
     await application.bot.set_my_commands([
         ('start', 'Вітання та основні команди'),
-        ('done', 'Я прибрався!'),
-        ('whois_cleaning', 'Хто зараз прибирає?'),
+        # ('done', 'Я прибрався!'),
+        # ('whois_cleaning', 'Хто зараз прибирає?'),
         ('add_meme', 'Поповнити мемапедію Тараса'),
         ('digest', 'Що там сьогодні?'),
         ('forecast', 'Прогноз погоди'),
@@ -275,15 +276,15 @@ async def post_init(application: ApplicationBuilder) -> None:
 
 
 def main():
-    logger.info("🖤 Flatmate Telegram Bot")
+    logger.info("🖤 Taras Bot")
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
             START_ROUTES: [
-                CallbackQueryHandler(whois_cleaning, pattern="^" + str(WHOIS_CLEANING) + "$"),
-                CallbackQueryHandler(add_flatmate, pattern="^" + str(ADD_FLATMATE) + "$"),
+                # CallbackQueryHandler(whois_cleaning, pattern="^" + str(WHOIS_CLEANING) + "$"),
+                # CallbackQueryHandler(add_flatmate, pattern="^" + str(ADD_FLATMATE) + "$"),
                 CallbackQueryHandler(fuck_off, pattern="^" + str(FUCK_OFF) + "$"),
                 # CallbackQueryHandler(four, pattern="^" + str(FOUR) + "$"),
             ],
@@ -309,25 +310,25 @@ def main():
                                     chat_id=TELEGRAM_CHAT_ID, name='morning message', days=(0, 1, 2, 3, 4, 5, 6))
 
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
-    done_handler = CommandHandler('done', done)
+    # done_handler = CommandHandler('done', done)
     digest_handler = CommandHandler('digest', digest)
     random_cat_handler = CommandHandler('random_cat', random_cat)
     forecast_handler = CommandHandler('forecast', forecast)
     war_stats_handler = CommandHandler('war_stats', war_stats)
     chat_info_handler = CommandHandler('chat_info', chat_info)
-    whois_cleaning_handler = CommandHandler('whois_cleaning', whois_cleaning)
+    # whois_cleaning_handler = CommandHandler('whois_cleaning', whois_cleaning)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
     application.add_handler(conv_handler)
     application.add_handler(add_meme_conv)
     application.add_handler(reply_handler)
-    application.add_handler(done_handler)
+    # application.add_handler(done_handler)
     application.add_handler(digest_handler)
     application.add_handler(random_cat_handler)
     application.add_handler(forecast_handler)
     application.add_handler(war_stats_handler)
     application.add_handler(chat_info_handler)
-    application.add_handler(whois_cleaning_handler)
+    # application.add_handler(whois_cleaning_handler)
     application.add_handler(unknown_handler)
     
     application.run_polling()
