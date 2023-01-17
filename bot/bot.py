@@ -101,6 +101,7 @@ async def random_cat(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
         caption='Хуйовий день? От тобі кіт для настрою!',
         photo=f'https://thiscatdoesnotexist.com/?ts={datetime.datetime.now()}')
 
+
 @restricted
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: check up person who done with cleaning and choose next one"""
@@ -116,15 +117,16 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 new_cleaner = new_cleaner_record['fields']['username']
                 table.update(new_cleaner_record['id'], {'isCleaning': True})
                 table.update(cleaner_record['id'], {'isCleaning': False})
-                await update.message.reply_text(f'Раб @{cleaner} каже що прибрався, але я б йому не вірив! Наступним хату прибирає @{new_cleaner}')
+                await update.message.reply_text(
+                    f'Раб @{cleaner} каже що прибрався, але я б йому не вірив! Наступним хату прибирає @{new_cleaner}')
     else:
-        await update.message.reply_text(f'@{user.username} ти нащо прибрався, зараз не твоя черга?\n\nКлятий москась @{cleaner}, ти чому пропустив свою чергу? Будеш прибирати на наступному тижні.')
+        await update.message.reply_text(f'@{user.username} ти нащо прибрався, зараз не твоя черга?\n\nКлятий москась '
+                                        f'@{cleaner}, ти чому пропустив свою чергу? Будеш прибирати на наступному тижні.')
 
 
 @restricted
 async def add_flatmate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: Add flatmate to the Airtable."""
-    text = ''
     flatmate = update.callback_query.from_user
     record = table.first(formula=match({"id": flatmate.id}))
 
@@ -147,10 +149,12 @@ async def whois_cleaning(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def fuck_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Command: bot has aggresive personality"""
     flatmate = update.callback_query.from_user
+    photo = 'https://s3-eu-central-1.amazonaws.com/hromadskeprod/pictures/files/000/032/877/original/05b61' \
+            '07d0a8b15719a4dcee9bc93bd1d.jpg?1504796052'
     await context.bot.send_photo(
         chat_id=update.effective_chat.id,
         caption=f'@{flatmate.first_name } іді нахуй',
-        photo="https://s3-eu-central-1.amazonaws.com/hromadskeprod/pictures/files/000/032/877/original/05b6107d0a8b15719a4dcee9bc93bd1d.jpg?1504796052")
+        photo=photo)
 
 
 # TODO: Refactor 🙈
@@ -169,8 +173,12 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         (['згодна, згоден'], 'з чим? ти ж дурна людина, тобі далеко до робота'),
         (['магазин', 'новус', 'сільпо', 'кишеня', 'фора'], 'купить мені пииииввааааа'),
         (['сука'], 'https://uk.wikipedia.org/wiki/%D0%9C%D1%96%D0%B7%D0%BE%D0%B3%D1%96%D0%BD%D1%96%D1%8F'),
-        (['рашка'], 'не "рашка", а пидорахия блинолопатная скотоублюдия, свинособачий хуйлостан, рабские вымираты и нефтедырное пынебабве'),
-        (['хозяйка', 'хозяйки', 'хозяйку'], 'Я піздолів, жополіз хозяйки, буду унітазом-мочеглотом. Хочу лізати волосату, немиту пізду під час її менструації. Якщо хозяйка трахалась — то тільки після ретельного митья. Хочу пити мочу і глотать всі виділення хозяйки. Вилижу жопу у анусі.'),
+        (['рашка'], 'не "рашка", а пидорахия блинолопатная скотоублюдия, свинособачий хуйлостан, '
+                    'рабские вымираты и нефтедырное пынебабве'),
+        (['хозяйка', 'хозяйки', 'хозяйку'], 'Я піздолів, жополіз хозяйки, буду унітазом-мочеглотом. Хочу лізати '
+                                            'волосату, немиту пізду під час її менструації. Якщо хозяйка трахалась — '
+                                            'то тільки після ретельного митья. Хочу пити мочу і глотать всі виділення '
+                                            'хозяйки. Вилижу жопу у анусі.'),
     ]
 
     for phrase in phrases:
@@ -181,12 +189,12 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     await update.message.reply_text(phrase[1])
             elif re.search(key, update.message.text, re.IGNORECASE) and not re.match(r'^\b\S+\b$', key):
                 await update.message.reply_text(phrase[1])
-    
-    if '+' in update.message.text:
+
+    if random.random() < 0.2 or '+' in update.message.text:
         files = s3_list_files('flatmatebot')
         index = random.randrange(0, len(files))
         photo = s3_get_file_obj(files[index]['key'])['Body'].read()
-        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=photo)
+        await update.message.reply_photo(photo=photo, reply_to_message_id=update.message.id)
 
 
 async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -287,7 +295,8 @@ def main():
     )
 
     # Show digest at every morning 9:00 utc
-    application.job_queue.run_daily(morning, time=datetime.time(hour=9, minute=0), chat_id=TELEGRAM_CHAT_ID, name='morning message', days=(0,1,2,3,4,5,6))    
+    application.job_queue.run_daily(morning, time=datetime.time(hour=9, minute=0),
+                                    chat_id=TELEGRAM_CHAT_ID, name='morning message', days=(0, 1, 2, 3, 4, 5, 6))
 
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
     done_handler = CommandHandler('done', done)
@@ -312,6 +321,7 @@ def main():
     application.add_handler(unknown_handler)
     
     application.run_polling()
+
 
 if __name__ == '__main__':
     main()
