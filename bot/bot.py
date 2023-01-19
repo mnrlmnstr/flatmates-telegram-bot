@@ -21,7 +21,7 @@ logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 reply_break = False
-REPLY_BREAK_DURATION = 10
+REPLY_BREAK_DURATION = 240
 REPLY_PHRASES = [
     (['собака'], 'собакаааа, вона краще ніж ви люди, людям довіряти не можно, от собаки вони найкращі...'),
     (['чорт'], 'а що одразу чорт????'),
@@ -124,7 +124,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 await update.message.reply_text(phrase[1])
                 enable_break()
 
-    if random.random() < 0.05:
+    if random.random() < 0.1:
         files = s3_list_files('flatmatebot')
         index = random.randrange(0, len(files))
         photo = s3_get_file_obj(files[index]['key'])['Body'].read()
