@@ -11,7 +11,7 @@ from telegram import File, Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, ConversationHandler, MessageHandler, filters
 
 from bot.s3 import upload_file as s3_upload_file, list_files as s3_list_files, get_file_obj as s3_get_file_obj
-from bot.weather import get_forecast
+from bot.weather import forecast_text
 from bot.war_stats import get_war_stats
 
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -21,7 +21,7 @@ logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 reply_break = False
-REPLY_BREAK_DURATION = 240
+REPLY_BREAK_DURATION = 120
 REPLY_PHRASES = [
     (['собака'], 'собакаааа, вона краще ніж ви люди, людям довіряти не можно, от собаки вони найкращі...'),
     (['чорт'], 'а що одразу чорт????'),
@@ -44,7 +44,20 @@ REPLY_PHRASES = [
 ]
 
 
-def restricted(func):
+def disable_break():
+    global reply_break
+    reply_break = False
+    logger.info('Reply break: OFF')
+
+
+def enable_break():
+    global reply_break
+    reply_break = True
+    logger.info('Reply break: ON')
+    Timer(REPLY_BREAK_DURATION, disable_break).start()
+
+
+def restricted_to_chat(func):
     """Restrict usage of func to allowed chat only"""
     @wraps(func)
     async def wrapped(update, context, *args, **kwargs):
@@ -62,31 +75,30 @@ def digest_text():
     weekdays = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 
                 'Пʼятниця', 'Субота', 'Неділя']
     
-    return f"Cьогодні {weekdays[weekday].lower()}.\n\n{get_forecast()}\n\n{get_war_stats()}"
+    return f'Cьогодні {weekdays[weekday].lower()}.\n\n{forecast_text()}\n\n{get_war_stats()}'
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: Welcome message"""
     user = update.message.from_user
     logger.info("User %s started the conversation.", user.username)
-    await update.message.reply_text(
-        "Привіт хозяїва! Я чорт тарас 😈 \n\n"
-        "Дивись команди у меню команд.")
+    await update.message.reply_text("Привіт хозяїва! Я чорт тарас 😈 \n\n"
+                                    "Дивись команди у меню команд.")
 
 
-async def morning(context: ContextTypes.DEFAULT_TYPE) -> None:
+async def morning(context: ContextTypes.DEFAULT_TYPE):
     """Callback that show digest at morning"""
     text = 'Добрий ранок! 🫠\n\n' + digest_text()
     await context.bot.send_message(context.job.chat_id, text=text)
 
 
-async def digest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def digest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show digest message and random cat"""
     await context.bot.send_message(update.effective_chat.id, text=digest_text())
     await random_cat(update, context)
 
 
-async def random_cat(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
+async def random_cat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show random cat"""
     await context.bot.send_photo(
         chat_id=update.effective_chat.id,
@@ -94,21 +106,8 @@ async def random_cat(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
         photo=f'https://thiscatdoesnotexist.com/?ts={datetime.datetime.now()}')
 
 
-def disable_break():
-    global reply_break
-    reply_break = False
-    logger.info('Reply break: OFF')
-
-
-def enable_break():
-    global reply_break
-    reply_break = True
-    logger.info('Reply break: ON')
-    Timer(REPLY_BREAK_DURATION, disable_break).start()
-
-
 # TODO: Refactor 0(n+) in phrases
-async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Listen to every chat message and reply with phrase or photo"""
     if reply_break:
         return
@@ -132,7 +131,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         enable_break()
 
 
-@restricted
+@restricted_to_chat
 async def add_meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('Відправ мені міміс, щоб зберегти до колекції.')
     return 1
@@ -143,7 +142,7 @@ async def add_meme_done(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
-async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     attachment = update.message.effective_attachment
     if isinstance(attachment, list):
         attachment = attachment[-1]
@@ -179,7 +178,7 @@ async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show forecast"""
-    await update.message.reply_text(get_forecast())
+    await update.message.reply_text(forecast_text())
 
 
 async def war_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -222,8 +221,8 @@ def main():
     )
 
     # Show digest at every morning 9:00 utc
-    application.job_queue.run_daily(morning, time=datetime.time(hour=9, minute=0),
-                                    chat_id=TELEGRAM_CHAT_ID, name='morning message', days=(0, 1, 2, 3, 4, 5, 6))
+    application.job_queue.run_daily(morning, time=datetime.time(hour=9, minute=0), chat_id=TELEGRAM_CHAT_ID,
+                                    name='morning message', days=(0, 1, 2, 3, 4, 5, 6))
 
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
     digest_handler = CommandHandler('digest', digest)
@@ -241,7 +240,7 @@ def main():
     application.add_handler(war_stats_handler)
     application.add_handler(chat_info_handler)
     application.add_handler(unknown_handler)
-    
+
     application.run_polling()
 
 
