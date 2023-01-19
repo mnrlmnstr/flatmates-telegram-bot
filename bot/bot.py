@@ -21,7 +21,7 @@ logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 reply_break = False
-REPLY_BREAK_DURATION = 240
+REPLY_BREAK_DURATION = 120
 REPLY_PHRASES = [
     (['собака'], 'собакаааа, вона краще ніж ви люди, людям довіряти не можно, от собаки вони найкращі...'),
     (['чорт'], 'а що одразу чорт????'),
