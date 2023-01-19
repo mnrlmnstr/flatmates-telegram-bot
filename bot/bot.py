@@ -21,7 +21,7 @@ logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 reply_break = False
-REPLY_BREAK_DURATION = 240
+REPLY_BREAK_DURATION = 10
 REPLY_PHRASES = [
     (['собака'], 'собакаааа, вона краще ніж ви люди, людям довіряти не можно, от собаки вони найкращі...'),
     (['чорт'], 'а що одразу чорт????'),
@@ -94,39 +94,42 @@ async def random_cat(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
         photo=f'https://thiscatdoesnotexist.com/?ts={datetime.datetime.now()}')
 
 
-# TODO: Refactor 0(n+) in phrases, don't use global scope
+def disable_break():
+    global reply_break
+    reply_break = False
+    logger.info('Reply break: OFF')
+
+
+def enable_break():
+    global reply_break
+    reply_break = True
+    logger.info('Reply break: ON')
+    Timer(REPLY_BREAK_DURATION, disable_break).start()
+
+
+# TODO: Refactor 0(n+) in phrases
 async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Listen to every chat message and reply with phrase or photo"""
-    def disable_break():
-        global reply_break
-        reply_break = False
-        logger.info('Reply break: OFF')
-
-    global reply_break
     if reply_break:
         return
-    else:
-        reply_break = True
-        logger.info('Reply break: ON')
-        Timer(REPLY_BREAK_DURATION, disable_break).start()
 
-    def get_phrase_reply():
-        for phrase in REPLY_PHRASES:
-            for key in phrase[0]:
-                if re.match(r'^\b\S+\b$', key):
-                    message = re.findall(r'\b\S+\b', str(update.message.text).lower())
-                    if key in message:
-                        return phrase[1]
-                elif re.search(key, update.message.text, re.IGNORECASE) and not re.match(r'^\b\S+\b$', key):
-                    return phrase[1]
-                
-    await update.message.reply_text(get_phrase_reply())
+    for phrase in REPLY_PHRASES:
+        for key in phrase[0]:
+            if re.match(r'^\b\S+\b$', key):
+                message = re.findall(r'\b\S+\b', str(update.message.text).lower())
+                if key in message:
+                    await update.message.reply_text(phrase[1])
+                    enable_break()
+            elif re.search(key, update.message.text, re.IGNORECASE) and not re.match(r'^\b\S+\b$', key):
+                await update.message.reply_text(phrase[1])
+                enable_break()
 
     if random.random() < 0.05:
         files = s3_list_files('flatmatebot')
         index = random.randrange(0, len(files))
         photo = s3_get_file_obj(files[index]['key'])['Body'].read()
         await update.message.reply_photo(photo=photo, reply_to_message_id=update.message.id)
+        enable_break()
 
 
 @restricted
