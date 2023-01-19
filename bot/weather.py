@@ -22,6 +22,7 @@ places = [
     {'name': '🇩🇪Берлін', 'params': {'latitude': '52.52', 'longitude': '13.41', 'daily': ['weathercode', 'temperature_2m_max', 'temperature_2m_min'], 'timezone': 'Europe/Berlin'}},
     {'name': '🇳🇱Гронінген', 'params': {'latitude': '53.22', 'longitude': '6.57', 'daily': ['weathercode', 'temperature_2m_max', 'temperature_2m_min'], 'timezone': 'Europe/Berlin'}},
     {'name': '🇵🇱Катовіце', 'params': {'latitude': '50.26', 'longitude': '19.03', 'daily': ['weathercode', 'temperature_2m_max', 'temperature_2m_min'], 'timezone': 'Europe/Berlin'}},
+    {'name': '🇨🇿Прага', 'params': {'latitude': '50.09', 'longitude': '14.42', 'daily': ['weathercode', 'temperature_2m_max', 'temperature_2m_min'], 'timezone': 'Europe/Berlin'}},
 ]
 
 
