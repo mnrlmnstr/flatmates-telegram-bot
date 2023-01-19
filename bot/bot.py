@@ -5,31 +5,20 @@ import datetime
 import logging
 import random
 from threading import Timer
-
 from functools import wraps
-from pyairtable import Table
-from pyairtable.formulas import match
 
-from telegram import File, Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, ConversationHandler, CallbackQueryHandler, \
-    MessageHandler, filters
+from telegram import File, Update
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, ConversationHandler, MessageHandler, filters
 
 from bot.s3 import upload_file as s3_upload_file, list_files as s3_list_files, get_file_obj as s3_get_file_obj
 from bot.weather import get_forecast
 from bot.war_stats import get_war_stats
 
-AIRTABLE_ID = os.getenv('AIRTABLE_ID')
-AIRTABLE_TOKEN = os.getenv('AIRTABLE_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-table = Table(AIRTABLE_TOKEN, AIRTABLE_ID, 'flatmates')
-
-START_ROUTES, END_ROUTES = range(2)
-WHOIS_CLEANING, ADD_FLATMATE, FUCK_OFF = range(3)
 
 reply_break = False
 REPLY_BREAK_DURATION = 240
@@ -55,12 +44,6 @@ REPLY_PHRASES = [
 ]
 
 
-def get_cleaner_username():
-    record = table.first(formula=match({"isCleaning": True}))
-    username = record['fields']['username']
-    return username
-
-
 def restricted(func):
     """Restrict usage of func to allowed chat only"""
     @wraps(func)
@@ -78,32 +61,17 @@ def digest_text():
     weekday = datetime.datetime.today().weekday()
     weekdays = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 
                 'Пʼятниця', 'Субота', 'Неділя']
-
-    text = ''
-    # if weekday == 2:
-    #     text += '@mnrlmnstr полий квіти!\n'
-    # elif weekday in [5, 6]:
-    #     text += f'@{get_cleaner_username()} твоя черга прибирати!\n'
     
-    return f"Cьогодні {weekdays[weekday].lower()}.\n\n{get_forecast()}\n\n{get_war_stats()}\n\n{text}"
+    return f"Cьогодні {weekdays[weekday].lower()}.\n\n{get_forecast()}\n\n{get_war_stats()}"
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Command: show welcome message and important commands"""
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Command: Welcome message"""
     user = update.message.from_user
     logger.info("User %s started the conversation.", user.username)
-    keyboard = [
-        # [InlineKeyboardButton("🧻 Хто прибирає?", callback_data=str(WHOIS_CLEANING))],
-        # [InlineKeyboardButton("📝 Записатися на прибирання", callback_data=str(ADD_FLATMATE))],
-        [InlineKeyboardButton("😘 Бот як ся маєш?", callback_data=str(FUCK_OFF))],
-        [InlineKeyboardButton("🗓 Дайджест", callback_data=str(FUCK_OFF))],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
         "Привіт хозяїва! Я чорт тарас 😈 \n\n"
-        "Що хочеш?", 
-        reply_markup=reply_markup)
-    return START_ROUTES
+        "Дивись команди у меню команд.")
 
 
 async def morning(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -124,61 +92,6 @@ async def random_cat(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
         chat_id=update.effective_chat.id,
         caption='Хуйовий день? От тобі кіт для настрою!',
         photo=f'https://thiscatdoesnotexist.com/?ts={datetime.datetime.now()}')
-
-
-@restricted
-async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Command: check up person who done with cleaning and choose next one"""
-    user = update.message.from_user
-    cleaner_record = table.first(formula=match({"isCleaning": True}))
-    cleaner = cleaner_record['fields']['username']
-    records = table.all(sort=['Created'])
-
-    if cleaner == user.username:
-        for idx, record in enumerate(records):
-            if record == cleaner_record:
-                new_cleaner_record = records[0] if len(records) == idx + 1 else records[idx + 1]
-                new_cleaner = new_cleaner_record['fields']['username']
-                table.update(new_cleaner_record['id'], {'isCleaning': True})
-                table.update(cleaner_record['id'], {'isCleaning': False})
-                await update.message.reply_text(
-                    f'Раб @{cleaner} каже що прибрався, але я б йому не вірив! Наступним хату прибирає @{new_cleaner}')
-    else:
-        await update.message.reply_text(f'@{user.username} ти нащо прибрався, зараз не твоя черга?\n\nКлятий москась '
-                                        f'@{cleaner}, ти чому пропустив свою чергу? Будеш прибирати на наступному тижні.')
-
-
-@restricted
-async def add_flatmate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Command: Add flatmate to the Airtable."""
-    flatmate = update.callback_query.from_user
-    record = table.first(formula=match({"id": flatmate.id}))
-
-    if record:
-        text = f'@{flatmate.username} вже записаний до списку рабів цієї квартири.'
-    else:
-        table.create({'id': flatmate.id, 'username': flatmate.username})
-        text = f'Записав @{flatmate.username} до рабів цієї квартири.'
-
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
-
-
-@restricted
-async def whois_cleaning(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Command: Show flatmate who clean"""
-    username = get_cleaner_username()
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Зараз черга @{username}')
-
-
-async def fuck_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Command: bot has aggresive personality"""
-    flatmate = update.callback_query.from_user
-    photo = 'https://s3-eu-central-1.amazonaws.com/hromadskeprod/pictures/files/000/032/877/original/05b61' \
-            '07d0a8b15719a4dcee9bc93bd1d.jpg?1504796052'
-    await context.bot.send_photo(
-        chat_id=update.effective_chat.id,
-        caption=f'@{flatmate.first_name } іді нахуй',
-        photo=photo)
 
 
 # TODO: Refactor 0(n+) in phrases, don't use global scope
@@ -206,7 +119,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                         return phrase[1]
                 elif re.search(key, update.message.text, re.IGNORECASE) and not re.match(r'^\b\S+\b$', key):
                     return phrase[1]
-
+                
     await update.message.reply_text(get_phrase_reply())
 
     if random.random() < 0.05:
@@ -283,9 +196,7 @@ async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def post_init(application: ApplicationBuilder) -> None:
     await application.bot.set_my_commands([
-        ('start', 'Вітання та основні команди'),
-        # ('done', 'Я прибрався!'),
-        # ('whois_cleaning', 'Хто зараз прибирає?'),
+        ('start', 'Вітання!'),
         ('add_meme', 'Поповнити мемапедію Тараса'),
         ('digest', 'Що там сьогодні?'),
         ('forecast', 'Прогноз погоди'),
@@ -297,23 +208,6 @@ async def post_init(application: ApplicationBuilder) -> None:
 def main():
     logger.info("🖤 Taras Bot")
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
-
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            START_ROUTES: [
-                # CallbackQueryHandler(whois_cleaning, pattern="^" + str(WHOIS_CLEANING) + "$"),
-                # CallbackQueryHandler(add_flatmate, pattern="^" + str(ADD_FLATMATE) + "$"),
-                CallbackQueryHandler(fuck_off, pattern="^" + str(FUCK_OFF) + "$"),
-                # CallbackQueryHandler(four, pattern="^" + str(FOUR) + "$"),
-            ],
-            # END_ROUTES: [
-                # CallbackQueryHandler(start_over, pattern="^" + str(ONE) + "$"),
-                # CallbackQueryHandler(end, pattern="^" + str(TWO) + "$"),
-            # ],
-        },
-        fallbacks=[CommandHandler("start", start)],
-    )
 
     add_meme_conv = ConversationHandler(
         entry_points=[CommandHandler('add_meme', add_meme)],
@@ -329,25 +223,20 @@ def main():
                                     chat_id=TELEGRAM_CHAT_ID, name='morning message', days=(0, 1, 2, 3, 4, 5, 6))
 
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
-    # done_handler = CommandHandler('done', done)
     digest_handler = CommandHandler('digest', digest)
     random_cat_handler = CommandHandler('random_cat', random_cat)
     forecast_handler = CommandHandler('forecast', forecast)
     war_stats_handler = CommandHandler('war_stats', war_stats)
     chat_info_handler = CommandHandler('chat_info', chat_info)
-    # whois_cleaning_handler = CommandHandler('whois_cleaning', whois_cleaning)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
-    application.add_handler(conv_handler)
     application.add_handler(add_meme_conv)
     application.add_handler(reply_handler)
-    # application.add_handler(done_handler)
     application.add_handler(digest_handler)
     application.add_handler(random_cat_handler)
     application.add_handler(forecast_handler)
     application.add_handler(war_stats_handler)
     application.add_handler(chat_info_handler)
-    # application.add_handler(whois_cleaning_handler)
     application.add_handler(unknown_handler)
     
     application.run_polling()
