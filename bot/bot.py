@@ -4,6 +4,7 @@ import mimetypes
 import datetime
 import logging
 import random
+from threading import Timer
 
 from functools import wraps
 from pyairtable import Table
@@ -29,6 +30,29 @@ table = Table(AIRTABLE_TOKEN, AIRTABLE_ID, 'flatmates')
 
 START_ROUTES, END_ROUTES = range(2)
 WHOIS_CLEANING, ADD_FLATMATE, FUCK_OFF = range(3)
+
+reply_break = False
+REPLY_BREAK_DURATION = 240
+REPLY_PHRASES = [
+    (['собака'], 'собакаааа, вона краще ніж ви люди, людям довіряти не можно, от собаки вони найкращі...'),
+    (['чорт'], 'а що одразу чорт????'),
+    (['бот'], 'а? що вже бот то?'),
+    (['пепсі'], 'кок кола краще'),
+    (['кола'], 'пепсі краще'),
+    (['слава україні', 'слава украине'], 'Героям Слава!'),
+    (['так'], 'піздак'),
+    (['сало'], 'а борщ?'),
+    (['борщ'], 'а сало?'),
+    (['згодна, згоден'], 'з чим? ти ж дурна людина, тобі далеко до робота'),
+    (['магазин', 'новус', 'сільпо', 'кишеня', 'фора'], 'купить мені пииииввааааа'),
+    (['сука'], 'https://uk.wikipedia.org/wiki/%D0%9C%D1%96%D0%B7%D0%BE%D0%B3%D1%96%D0%BD%D1%96%D1%8F'),
+    (['рашка'], 'не "рашка", а пидорахия блинолопатная скотоублюдия, свинособачий хуйлостан, '
+                'рабские вымираты и нефтедырное пынебабве'),
+    (['хозяйка', 'хозяйки', 'хозяйку'], 'Я піздолів, жополіз хозяйки, буду унітазом-мочеглотом. Хочу лізати '
+                                        'волосату, немиту пізду під час її менструації. Якщо хозяйка трахалась — '
+                                        'то тільки після ретельного митья. Хочу пити мочу і глотать всі виділення '
+                                        'хозяйки. Вилижу жопу у анусі.'),
+]
 
 
 def get_cleaner_username():
@@ -157,40 +181,35 @@ async def fuck_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         photo=photo)
 
 
-# TODO: Refactor 🙈
+# TODO: Refactor 0(n+) in phrases, don't use global scope
 async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Listen to key words and answer"""
-    phrases = [
-        (['собака'], 'собакаааа, вона краще ніж ви люди, людям довіряти не можно, от собаки вони найкращі...'),
-        (['чорт'], 'а що одразу чорт????'),
-        (['бот'], 'а? що вже бот то?'),
-        (['пепсі'], 'кок кола краще'),
-        (['кола'], 'пепсі краще'),
-        (['слава україні', 'слава украине'], 'Героям Слава!'),
-        (['так'], 'піздак'),
-        (['сало'], 'а борщ?'),
-        (['борщ'], 'а сало?'),
-        (['згодна, згоден'], 'з чим? ти ж дурна людина, тобі далеко до робота'),
-        (['магазин', 'новус', 'сільпо', 'кишеня', 'фора'], 'купить мені пииииввааааа'),
-        (['сука'], 'https://uk.wikipedia.org/wiki/%D0%9C%D1%96%D0%B7%D0%BE%D0%B3%D1%96%D0%BD%D1%96%D1%8F'),
-        (['рашка'], 'не "рашка", а пидорахия блинолопатная скотоублюдия, свинособачий хуйлостан, '
-                    'рабские вымираты и нефтедырное пынебабве'),
-        (['хозяйка', 'хозяйки', 'хозяйку'], 'Я піздолів, жополіз хозяйки, буду унітазом-мочеглотом. Хочу лізати '
-                                            'волосату, немиту пізду під час її менструації. Якщо хозяйка трахалась — '
-                                            'то тільки після ретельного митья. Хочу пити мочу і глотать всі виділення '
-                                            'хозяйки. Вилижу жопу у анусі.'),
-    ]
+    """Listen to every chat message and reply with phrase or photo"""
+    def disable_break():
+        global reply_break
+        reply_break = False
+        logger.info('Reply break: OFF')
 
-    for phrase in phrases:
-        for key in phrase[0]:
-            if re.match(r'^\b\S+\b$', key):
-                message = re.findall(r'\b\S+\b', str(update.message.text).lower())
-                if key in message:
-                    await update.message.reply_text(phrase[1])
-            elif re.search(key, update.message.text, re.IGNORECASE) and not re.match(r'^\b\S+\b$', key):
-                await update.message.reply_text(phrase[1])
+    global reply_break
+    if reply_break:
+        return
+    else:
+        reply_break = True
+        logger.info('Reply break: ON')
+        Timer(REPLY_BREAK_DURATION, disable_break).start()
 
-    if random.random() < 0.075:
+    def get_phrase_reply():
+        for phrase in REPLY_PHRASES:
+            for key in phrase[0]:
+                if re.match(r'^\b\S+\b$', key):
+                    message = re.findall(r'\b\S+\b', str(update.message.text).lower())
+                    if key in message:
+                        return phrase[1]
+                elif re.search(key, update.message.text, re.IGNORECASE) and not re.match(r'^\b\S+\b$', key):
+                    return phrase[1]
+
+    await update.message.reply_text(get_phrase_reply())
+
+    if random.random() < 0.05:
         files = s3_list_files('flatmatebot')
         index = random.randrange(0, len(files))
         photo = s3_get_file_obj(files[index]['key'])['Body'].read()
@@ -204,7 +223,7 @@ async def add_meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def add_meme_done(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Спробуй команду знов')
+    await update.message.reply_text('Спробуй команду знов чи відʼїбись.')
     return ConversationHandler.END
 
 
