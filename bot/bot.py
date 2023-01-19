@@ -11,7 +11,7 @@ from telegram import File, Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, ConversationHandler, MessageHandler, filters
 
 from bot.s3 import upload_file as s3_upload_file, list_files as s3_list_files, get_file_obj as s3_get_file_obj
-from bot.weather import get_forecast
+from bot.weather import forecast_text
 from bot.war_stats import get_war_stats
 
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -75,7 +75,7 @@ def digest_text():
     weekdays = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 
                 'Пʼятниця', 'Субота', 'Неділя']
     
-    return f'Cьогодні {weekdays[weekday].lower()}.\n\n{get_forecast()}\n\n{get_war_stats()}'
+    return f'Cьогодні {weekdays[weekday].lower()}.\n\n{forecast_text()}\n\n{get_war_stats()}'
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -178,7 +178,7 @@ async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show forecast"""
-    await update.message.reply_text(get_forecast())
+    await update.message.reply_text(forecast_text())
 
 
 async def war_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
