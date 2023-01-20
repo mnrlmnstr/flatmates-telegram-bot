@@ -185,8 +185,8 @@ async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cv(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # if random.random() < 0.5:
-    #     return
+    if random.random() < 0.6:
+        return
 
     attachment = update.message.effective_attachment
     if isinstance(attachment, list):
