@@ -52,9 +52,10 @@ def disable_break():
 
 def enable_break():
     global reply_break
-    reply_break = True
-    logger.info('Reply break: ON')
-    Timer(REPLY_BREAK_DURATION, disable_break).start()
+    if not reply_break:
+        reply_break = True
+        logger.info('Reply break: ON')
+        Timer(REPLY_BREAK_DURATION, disable_break).start()
 
 
 def restricted_to_chat(func):
@@ -122,6 +123,9 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif re.search(key, update.message.text, re.IGNORECASE) and not re.match(r'^\b\S+\b$', key):
                 await update.message.reply_text(phrase[1])
                 enable_break()
+
+    if re.findall(r'ы|ё|ъ|э', str(update.message.text).lower()):
+        await update.message.reply_text('🚨🚨🚨 КАЦАП ДЕТЕКТЕД 🚨🚨🚨')
 
     if random.random() < 0.1:
         files = s3_list_files('flatmatebot')
