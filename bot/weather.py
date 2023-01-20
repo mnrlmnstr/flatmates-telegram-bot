@@ -2,7 +2,7 @@ import requests
 
 wmo_to_text = [
     ([0],               '🌞 Чисте небо'),
-    ([1, 2, 3],         '👻 Переважно ясно, похмуро'),
+    ([1, 2, 3],         '👻 Похмуро'),
     ([45, 48],          '😶‍🌫️ Туман'),
     ([51, 53, 55],      '🌧 Мряка'),
     ([56, 57],          '🥶 Крижана мряка'),
@@ -21,7 +21,7 @@ places = [
     {'name': '🇳🇱Ротердам', 'params': {'latitude': '51.92', 'longitude': '4.48', 'daily': ['weathercode', 'temperature_2m_max', 'temperature_2m_min'], 'timezone': 'Europe/Berlin'}},
     {'name': '🇩🇪Берлін', 'params': {'latitude': '52.52', 'longitude': '13.41', 'daily': ['weathercode', 'temperature_2m_max', 'temperature_2m_min'], 'timezone': 'Europe/Berlin'}},
     {'name': '🇳🇱Гронінген', 'params': {'latitude': '53.22', 'longitude': '6.57', 'daily': ['weathercode', 'temperature_2m_max', 'temperature_2m_min'], 'timezone': 'Europe/Berlin'}},
-    {'name': '🇵🇱Катовіце', 'params': {'latitude': '50.26', 'longitude': '19.03', 'daily': ['weathercode', 'temperature_2m_max', 'temperature_2m_min'], 'timezone': 'Europe/Berlin'}},
+    {'name': '🇵🇱Краків', 'params': {'latitude': '50.06', 'longitude': '19.94', 'daily': ['weathercode', 'temperature_2m_max', 'temperature_2m_min'], 'timezone': 'Europe/Berlin'}},
     {'name': '🇨🇿Прага', 'params': {'latitude': '50.09', 'longitude': '14.42', 'daily': ['weathercode', 'temperature_2m_max', 'temperature_2m_min'], 'timezone': 'Europe/Berlin'}},
 ]
 
