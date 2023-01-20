@@ -13,6 +13,9 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Conve
 from bot.s3 import upload_file as s3_upload_file, list_files as s3_list_files, get_file_obj as s3_get_file_obj
 from bot.weather import forecast_text
 from bot.war_stats import get_war_stats
+from bot.detect import process_image
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
@@ -166,10 +169,11 @@ async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file_name = get_original_file_name()
     mime_type = mimetypes.MimeTypes().guess_type(file_name)[0]
 
-    if not os.path.isdir('tmp'):
-        os.mkdir('tmp')
+    tmp_dir = os.path.join(ROOT_DIR, 'tmp')
+    if not os.path.isdir(tmp_dir):
+        os.mkdir(tmp_dir)
 
-    tmp_file_name = f'tmp/{datetime.datetime.timestamp(datetime.datetime.now())}'
+    tmp_file_name = os.path.join(tmp_dir, str(datetime.datetime.timestamp(datetime.datetime.now())))
     file = await File.download_to_drive(file, tmp_file_name)
     s3_upload_file(file, 'flatmatebot', file_name, mime_type, 'public-read')
     try:
@@ -178,6 +182,31 @@ async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(e)
     await update.message.reply_text(text='Зберіг!')
     return ConversationHandler.END
+
+
+async def cv(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # if random.random() < 0.5:
+    #     return
+
+    attachment = update.message.effective_attachment
+    if isinstance(attachment, list):
+        attachment = attachment[-1]
+
+    file = await attachment.get_file()
+
+    tmp_dir = os.path.join(ROOT_DIR, 'tmp')
+    if not os.path.isdir(tmp_dir):
+        os.mkdir(tmp_dir)
+    tmp_file_name = os.path.join(tmp_dir, str(datetime.datetime.timestamp(datetime.datetime.now())))
+    file = await File.download_to_drive(file, tmp_file_name)
+
+    img = process_image(tmp_file_name)
+    await update.message.reply_photo(photo=img, reply_to_message_id=update.message.id)
+
+    try:
+        os.unlink(tmp_file_name)
+    except Exception as e:
+        logger.error(e)
 
 
 async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -228,6 +257,7 @@ def main():
     application.job_queue.run_daily(morning, time=datetime.time(hour=9, minute=0), chat_id=TELEGRAM_CHAT_ID,
                                     name='morning message', days=(0, 1, 2, 3, 4, 5, 6))
 
+    cv_handler = MessageHandler(filters.PHOTO, cv)
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
     digest_handler = CommandHandler('digest', digest)
     random_cat_handler = CommandHandler('random_cat', random_cat)
@@ -237,6 +267,7 @@ def main():
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
     application.add_handler(add_meme_conv)
+    application.add_handler(cv_handler)
     application.add_handler(reply_handler)
     application.add_handler(digest_handler)
     application.add_handler(random_cat_handler)
