@@ -3,6 +3,7 @@ FROM python:latest
 WORKDIR /app
 COPY . /app
 
+# Update packages and intall libgl1 for opencv
 RUN apt-get update && \
     apt-get install -yqq libgl1
 
