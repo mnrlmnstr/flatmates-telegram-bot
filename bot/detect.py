@@ -20,11 +20,12 @@ def process_image(path):
     img = cv2.imread(path)
 
     outputs = pre_process(img)
-    img = post_process(img, outputs, 0.5)
+    result = post_process(img, outputs, 0.5)
 
     output_path = os.path.join(ROOT_DIR, 'tmp/output.jpg')
-    cv2.imwrite(output_path, img)
-    return output_path
+    cv2.imwrite(output_path, result.get('img'))
+
+    return result.get('is_objects'), output_path
 
 
 def pre_process(img):
@@ -104,4 +105,7 @@ def post_process(img, outputs, conf):
     if len(indices) > 0:
         indices = indices.flatten()
 
-    return draw_rectangles(img, boxes[indices], scores[indices], class_ids[indices])
+    return {
+        'img': draw_rectangles(img, boxes[indices], scores[indices], class_ids[indices]),
+        'is_objects': bool(scores.any()),
+    }

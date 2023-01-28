@@ -200,8 +200,9 @@ async def cv(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tmp_file_name = os.path.join(tmp_dir, str(datetime.datetime.timestamp(datetime.datetime.now())))
     file = await File.download_to_drive(file, tmp_file_name)
 
-    img = process_image(tmp_file_name)
-    await update.message.reply_photo(photo=img, reply_to_message_id=update.message.id)
+    result = process_image(tmp_file_name)
+    if result[0]:
+        await update.message.reply_photo(photo=result[1], reply_to_message_id=update.message.id)
 
     try:
         os.unlink(tmp_file_name)
