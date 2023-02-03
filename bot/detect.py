@@ -20,7 +20,7 @@ def process_image(path):
     img = cv2.imread(path)
 
     outputs = pre_process(img)
-    result = post_process(img, outputs, 0.5)
+    result = post_process(img, outputs, 0.1)
 
     output_path = os.path.join(ROOT_DIR, 'tmp/output.jpg')
     cv2.imwrite(output_path, result.get('img'))
@@ -101,7 +101,7 @@ def post_process(img, outputs, conf):
 
     boxes = boxes_
 
-    indices = cv2.dnn.NMSBoxes(boxes.tolist(), scores.tolist(), conf, 0.6)
+    indices = cv2.dnn.NMSBoxes(boxes.tolist(), scores.tolist(), conf, 0.5)
     if len(indices) > 0:
         indices = indices.flatten()
 
