@@ -258,7 +258,7 @@ def main():
     application.job_queue.run_daily(morning, time=datetime.time(hour=9, minute=0), chat_id=TELEGRAM_CHAT_ID,
                                     name='morning message', days=(0, 1, 2, 3, 4, 5, 6))
 
-    cv_handler = MessageHandler(filters.PHOTO, cv)
+    # cv_handler = MessageHandler(filters.PHOTO, cv)
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
     digest_handler = CommandHandler('digest', digest)
     random_cat_handler = CommandHandler('random_cat', random_cat)
@@ -268,7 +268,7 @@ def main():
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
     application.add_handler(add_meme_conv)
-    application.add_handler(cv_handler)
+    # application.add_handler(cv_handler)
     application.add_handler(reply_handler)
     application.add_handler(digest_handler)
     application.add_handler(random_cat_handler)
