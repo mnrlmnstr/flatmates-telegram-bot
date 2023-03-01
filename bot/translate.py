@@ -12,8 +12,6 @@ GOOGLE_CLIENT_EMAIL = os.getenv('GOOGLE_CLIENT_EMAIL')
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_509_CERT = os.getenv('GOOGLE_509_CERT')
 
-print(GOOGLE_PRIVATE_KEY)
-
 credentials = service_account.Credentials.from_service_account_info(
     {
       "type": "service_account",
