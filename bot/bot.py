@@ -13,7 +13,6 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Conve
 from bot.s3 import upload_file as s3_upload_file, list_files as s3_list_files, get_file_obj as s3_get_file_obj
 from bot.weather import forecast_text
 from bot.war_stats import get_war_stats
-from bot.detect import process_image
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -78,7 +77,7 @@ def digest_text():
     weekday = datetime.datetime.today().weekday()
     weekdays = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 
                 'Пʼятниця', 'Субота', 'Неділя']
-    
+
     return f'Cьогодні {weekdays[weekday].lower()}.\n\n{forecast_text()}\n\n{get_war_stats()}'
 
 
@@ -113,6 +112,7 @@ async def random_cat(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # TODO: Refactor 0(n+) in phrases
 async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Listen to every chat message and reply with phrase or photo"""
+
     if reply_break:
         return
 
@@ -130,7 +130,8 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if re.findall(r'ы|ё|ъ|э', str(update.message.text).lower()):
         await update.message.reply_text('🚨🚨🚨 КАЦАП ДЕТЕКТЕД 🚨🚨🚨')
 
-    if random.random() < 0.1:
+    if random.random() < 0.5:
+        # image
         files = s3_list_files('flatmatebot')
         index = random.randrange(0, len(files))
         photo = s3_get_file_obj(files[index]['key'])['Body'].read()
@@ -184,32 +185,6 @@ async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
-async def cv(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if random.random() < 0.6:
-        return
-
-    attachment = update.message.effective_attachment
-    if isinstance(attachment, list):
-        attachment = attachment[-1]
-
-    file = await attachment.get_file()
-
-    tmp_dir = os.path.join(ROOT_DIR, 'tmp')
-    if not os.path.isdir(tmp_dir):
-        os.mkdir(tmp_dir)
-    tmp_file_name = os.path.join(tmp_dir, str(datetime.datetime.timestamp(datetime.datetime.now())))
-    file = await File.download_to_drive(file, tmp_file_name)
-
-    result = process_image(tmp_file_name)
-    if result[0]:
-        await update.message.reply_photo(photo=result[1], reply_to_message_id=update.message.id)
-
-    try:
-        os.unlink(tmp_file_name)
-    except Exception as e:
-        logger.error(e)
-
-
 async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show forecast"""
     await update.message.reply_text(forecast_text())
@@ -258,7 +233,6 @@ def main():
     application.job_queue.run_daily(morning, time=datetime.time(hour=9, minute=0), chat_id=TELEGRAM_CHAT_ID,
                                     name='morning message', days=(0, 1, 2, 3, 4, 5, 6))
 
-    # cv_handler = MessageHandler(filters.PHOTO, cv)
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
     digest_handler = CommandHandler('digest', digest)
     random_cat_handler = CommandHandler('random_cat', random_cat)
@@ -268,7 +242,6 @@ def main():
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
     application.add_handler(add_meme_conv)
-    # application.add_handler(cv_handler)
     application.add_handler(reply_handler)
     application.add_handler(digest_handler)
     application.add_handler(random_cat_handler)
