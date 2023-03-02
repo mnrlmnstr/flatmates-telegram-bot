@@ -120,7 +120,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if reply_break:
         return
 
-    if random.random() < 0.3:
+    if random.random() < 0.5:
         text = update.message.text
         translated_input = translate_text(text, 'en')
         openai_reply = generate_response(f'Generate short, max 20 words, joke on this text: {translated_input}.')
@@ -142,7 +142,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 enable_break()
                 return
 
-    if random.random() < 0.3:
+    if random.random() < 0.13:
         files = s3_list_files('flatmatebot')
         index = random.randrange(0, len(files))
         photo = s3_get_file_obj(files[index]['key'])['Body'].read()
