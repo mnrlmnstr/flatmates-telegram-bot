@@ -10,7 +10,9 @@ from functools import wraps
 from telegram import File, Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, ConversationHandler, MessageHandler, filters
 
+from bot.ai import generate_response
 from bot.s3 import upload_file as s3_upload_file, list_files as s3_list_files, get_file_obj as s3_get_file_obj
+from bot.translate import translate_text
 from bot.weather import forecast_text
 from bot.war_stats import get_war_stats
 
@@ -112,8 +114,19 @@ async def random_cat(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # TODO: Refactor 0(n+) in phrases
 async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Listen to every chat message and reply with phrase or photo"""
+    if re.findall(r'ы|ё|ъ|э', str(update.message.text).lower()):
+        await update.message.reply_text('🚨🚨🚨 КАЦАП ДЕТЕКТЕД 🚨🚨🚨')
 
     if reply_break:
+        return
+
+    if random.random() < 0.3:
+        text = update.message.text
+        translated_input = translate_text(text, 'en')
+        openai_reply = generate_response(f'Generate short, max 20 words, joke on this text: {translated_input}.')
+        translated_reply = translate_text(openai_reply)
+        await update.message.reply_text(translated_reply)
+        enable_break()
         return
 
     for phrase in REPLY_PHRASES:
@@ -123,20 +136,19 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if key in message:
                     await update.message.reply_text(phrase[1])
                     enable_break()
+                    return
             elif re.search(key, update.message.text, re.IGNORECASE) and not re.match(r'^\b\S+\b$', key):
                 await update.message.reply_text(phrase[1])
                 enable_break()
+                return
 
-    if re.findall(r'ы|ё|ъ|э', str(update.message.text).lower()):
-        await update.message.reply_text('🚨🚨🚨 КАЦАП ДЕТЕКТЕД 🚨🚨🚨')
-
-    if random.random() < 0.5:
-        # image
+    if random.random() < 0.3:
         files = s3_list_files('flatmatebot')
         index = random.randrange(0, len(files))
         photo = s3_get_file_obj(files[index]['key'])['Body'].read()
         await update.message.reply_photo(photo=photo, reply_to_message_id=update.message.id)
         enable_break()
+        return
 
 
 @restricted_to_chat
@@ -183,6 +195,23 @@ async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(e)
     await update.message.reply_text(text='Зберіг!')
     return ConversationHandler.END
+
+
+async def translate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        text = context.args
+        if len(text[0]) == 2: # lazy, check for codes x)
+            target_lang = text[0]
+            del text[0]
+        else:
+            target_lang = 'uk'
+
+        text = ' '.join(text)
+        translated_text = translate_text(text, target_lang)
+        await update.message.reply_text(translated_text)
+    except (IndexError, ValueError):
+        await update.message.reply_text('А де текст блядь?')
+
 
 
 async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -239,10 +268,12 @@ def main():
     forecast_handler = CommandHandler('forecast', forecast)
     war_stats_handler = CommandHandler('war_stats', war_stats)
     chat_info_handler = CommandHandler('chat_info', chat_info)
+    translate_handler = CommandHandler('translate', translate)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
     application.add_handler(add_meme_conv)
     application.add_handler(reply_handler)
+    application.add_handler(translate_handler)
     application.add_handler(digest_handler)
     application.add_handler(random_cat_handler)
     application.add_handler(forecast_handler)
