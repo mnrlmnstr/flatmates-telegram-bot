@@ -27,20 +27,29 @@ credentials = service_account.Credentials.from_service_account_info(
     }
 )
 
-def translate_text(text: str, project_id="encouraging-art-378908"):
+def translate_text(text: str, target_lang: str = 'uk'):
     logger.info('Google Translate: send request.')
     try:
+        project_id = "encouraging-art-378908"
         client = translate.TranslationServiceClient(credentials=credentials)
         location = "global"
         parent = f"projects/{project_id}/locations/{location}"
+
+        detect_response = client.detect_language(
+            parent=parent,
+            content=text,
+            mime_type='text/plain'
+        )
+        detected_language = detect_response.languages[0]
+        language_code = detected_language.language_code
 
         response = client.translate_text(
             request={
                 "parent": parent,
                 "contents": [text],
                 "mime_type": "text/plain",
-                "source_language_code": "en-US",
-                "target_language_code": "uk",
+                "source_language_code": language_code,
+                "target_language_code": target_lang,
             }
         )
 
