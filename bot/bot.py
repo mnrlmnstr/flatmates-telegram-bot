@@ -117,13 +117,32 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if re.findall(r'ы|ё|ъ|э', str(update.message.text).lower()):
         await update.message.reply_text('🚨🚨🚨 КАЦАП ДЕТЕКТЕД 🚨🚨🚨')
 
+
+    if re.findall(r'бот|чорт|тарас', str(update.message.text).lower()):
+        translated_input = translate_text(update.message.text, 'en')
+        messages = [
+            {'role': 'system', 'content': 'Your name is Taras. You are sad and cynic, make cringe jokes on user messages.'},
+            {'role': 'user', 'content': f'Make reply on this text: {translated_input}'},
+        ]
+        openai_reply = generate_response(messages)
+        translated_reply = translate_text(openai_reply)
+        await update.message.reply_text(translated_reply)
+        return
+
+
     if reply_break:
         return
 
     if random.random() < 0.5:
         text = update.message.text
         translated_input = translate_text(text, 'en')
-        openai_reply = generate_response(f'Generate short, max 20 words, joke on this text: {translated_input}.')
+
+        messages = [
+            {'role': 'system', 'content': 'You are a sad and cynic comedian, you reply by jokes, max 20 word long'},
+            {'role': 'user', 'content': translated_input},
+        ]
+        openai_reply = generate_response(messages)
+
         translated_reply = translate_text(openai_reply)
         await update.message.reply_text(translated_reply)
         enable_break()
@@ -200,7 +219,7 @@ async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def translate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         text = context.args
-        if len(text[0]) == 2: # lazy, check for codes x)
+        if len(text[0]) == 2 and text[1]: # lazy, check for coutry codes x)
             target_lang = text[0]
             del text[0]
         else:
@@ -211,7 +230,6 @@ async def translate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(translated_text)
     except (IndexError, ValueError):
         await update.message.reply_text('А де текст блядь?')
-
 
 
 async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):

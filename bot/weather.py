@@ -53,6 +53,14 @@ def forecast_text():
         text += f"{place.get('name')} H:{round(fc['temperature_2m_max'][0])}° L:{round(fc['temperature_2m_min'][0])}°" \
                 f" {text_by_wmo(fc['weathercode'][0])}."
 
-    generated_text = generate_response(f'Write weather report with jokes. Highlight every city with bold formating and country emoji. Highlight forecast with weather emoji.Use this weather data: {text}.')
+    messages = [
+        {'role': 'system', 'content': 'Your a weather reporter and comedian. '
+                                      'Highlight cities by country emoji and format title on separated line. '
+                                      'Highlight weather condition by emoji. '
+                                      'Make joke about every city forecast.'},
+        {'role': 'user', 'content': f'Forecast data: {text}'},
+    ]
+
+    generated_text = generate_response(messages)
     translated_text = translate_text(generated_text)
     return translated_text
