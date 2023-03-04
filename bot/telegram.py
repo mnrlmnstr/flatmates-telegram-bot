@@ -47,6 +47,8 @@ REPLY_PHRASES = [
                                         'хозяйки. Вилижу жопу у анусі.'),
 ]
 
+messages_buffer = []
+
 
 def disable_break():
     global reply_break
@@ -105,36 +107,30 @@ async def digest(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # TODO: Refactor 0(n+) in phrases
 async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Listen to every chat message and reply with phrase or photo"""
-    if re.findall(r'ы|ё|ъ|э', str(update.message.text).lower()):
-        await update.message.reply_text('🚨🚨🚨 КАЦАП ДЕТЕКТЕД 🚨🚨🚨')
 
-    if re.findall(r'бот|чорт|тарас', str(update.message.text).lower()):
-        translated_input = translate_text(update.message.text, 'en')
-        messages = [
-            {'role': 'system', 'content': 'Your name is Taras. You are sad and cynic, make cringe jokes on user messages.'},
-            {'role': 'user', 'content': f'Make reply on this text: {translated_input}'},
-        ]
-        openai_reply = generate_response(messages)
+    reply_message = update.message.reply_to_message
+    is_reply = reply_message and context.bot.first_name == reply_message.from_user.first_name
+
+    if re.findall(r'бот|чорт|тарас', str(update.message.text).lower()) or is_reply:
+        message = translate_text(update.message.text, 'en')
+        global messages_buffer
+        if len(messages_buffer) == 10:
+            del messages_buffer[0]
+
+        messages_buffer.append({'role' :'user', 'content': message})
+        openai_reply = generate_response(messages_buffer)
+        messages_buffer.append({'role' :'assistant', 'content': openai_reply})
         translated_reply = translate_text(openai_reply)
         await update.message.reply_text(translated_reply)
         return
+
+    if re.findall(r'ы|ё|ъ|э', str(update.message.text).lower()):
+        await update.message.reply_text('🚨🚨🚨 КАЦАП ДЕТЕКТЕД 🚨🚨🚨')
 
     if reply_break:
         return
 
-    if random.random() < 0.5:
-        text = update.message.text
-        translated_input = translate_text(text, 'en')
-
-        messages = [
-            {'role': 'system', 'content': 'You are a sad and cynic comedian, you reply by jokes, max 20 word long'},
-            {'role': 'user', 'content': translated_input},
-        ]
-        openai_reply = generate_response(messages)
-
-        translated_reply = translate_text(openai_reply)
-        await update.message.reply_text(translated_reply)
-        enable_break()
+    if random.random() > 0.13:
         return
 
     for phrase in REPLY_PHRASES:
@@ -150,13 +146,12 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 enable_break()
                 return
 
-    if random.random() < 0.13:
-        files = s3_list_files('flatmatebot')
-        index = random.randrange(0, len(files))
-        photo = s3_get_file_obj(files[index]['key'])['Body'].read()
-        await update.message.reply_photo(photo=photo, reply_to_message_id=update.message.id)
-        enable_break()
-        return
+    files = s3_list_files('flatmatebot')
+    index = random.randrange(0, len(files))
+    photo = s3_get_file_obj(files[index]['key'])['Body'].read()
+    await update.message.reply_photo(photo=photo, reply_to_message_id=update.message.id)
+    enable_break()
+    return
 
 
 @restricted_to_chat
