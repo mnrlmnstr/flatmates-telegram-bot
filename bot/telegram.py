@@ -157,7 +157,11 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def clean_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global messages_buffer
     if messages_buffer:
-        await update.message.reply_text('Історія стерта.\n' + str(messages_buffer))
+        history = ''
+        for message in messages_buffer:
+            message = dict(message)
+            history += f"%{message.get('role')}: {message.get('content')}\n"
+        await update.message.reply_text('Історія стерта: \n\n' + history)
         messages_buffer = []
     else:
         await update.message.reply_text('Нічого нема')
@@ -222,7 +226,7 @@ async def translate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         translated_text = translate_text(text, target_lang)
         await update.message.reply_text(translated_text)
     except (IndexError, ValueError):
-        await update.message.reply_text('А де текст блядь?')
+        await update.message.reply_text('А де текст?')
 
 
 async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -253,6 +257,7 @@ async def post_init(application: ApplicationBuilder) -> None:
         ('forecast', 'Прогноз погоди'),
         ('random_cat', 'Показати рандомну кітцю'),
         ('war_stats', 'Показати кількість мертвої русні'),
+        ('clean_history', 'Очистити останні 10 повідомлень з тарасом'),
     ])
 
 
