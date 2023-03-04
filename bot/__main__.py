@@ -1,4 +1,4 @@
-from .bot import main
+from bot.telegram import main
 
 if __name__ == '__main__':
     main()

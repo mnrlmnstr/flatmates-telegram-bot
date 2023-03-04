@@ -47,6 +47,8 @@ REPLY_PHRASES = [
                                         'хозяйки. Вилижу жопу у анусі.'),
 ]
 
+messages_buffer = []
+
 
 def disable_break():
     global reply_break
@@ -100,52 +102,35 @@ async def morning(context: ContextTypes.DEFAULT_TYPE):
 async def digest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show digest message and random cat"""
     await context.bot.send_message(update.effective_chat.id, text=digest_text())
-    await random_cat(update, context)
-
-
-async def random_cat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Command: show random cat"""
-    await context.bot.send_photo(
-        chat_id=update.effective_chat.id,
-        caption='Хуйовий день? От тобі кіт для настрою!',
-        photo=f'https://thiscatdoesnotexist.com/?ts={datetime.datetime.now()}')
 
 
 # TODO: Refactor 0(n+) in phrases
 async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Listen to every chat message and reply with phrase or photo"""
-    if re.findall(r'ы|ё|ъ|э', str(update.message.text).lower()):
-        await update.message.reply_text('🚨🚨🚨 КАЦАП ДЕТЕКТЕД 🚨🚨🚨')
 
+    reply_message = update.message.reply_to_message
+    is_reply = reply_message and context.bot.first_name == reply_message.from_user.first_name
 
-    if re.findall(r'бот|чорт|тарас', str(update.message.text).lower()):
-        translated_input = translate_text(update.message.text, 'en')
-        messages = [
-            {'role': 'system', 'content': 'Your name is Taras. You are sad and cynic, make cringe jokes on user messages.'},
-            {'role': 'user', 'content': f'Make reply on this text: {translated_input}'},
-        ]
-        openai_reply = generate_response(messages)
+    if re.findall(r'бот|чорт|тарас', str(update.message.text).lower()) or is_reply:
+        message = translate_text(update.message.text, 'en')
+        global messages_buffer
+        if len(messages_buffer) == 10:
+            del messages_buffer[0]
+
+        messages_buffer.append({'role' :'user', 'content': message})
+        openai_reply = generate_response(messages_buffer)
+        messages_buffer.append({'role' :'assistant', 'content': openai_reply})
         translated_reply = translate_text(openai_reply)
         await update.message.reply_text(translated_reply)
         return
 
+    if re.findall(r'ы|ё|ъ|э', str(update.message.text).lower()):
+        await update.message.reply_text('🚨🚨🚨 КАЦАП ДЕТЕКТЕД 🚨🚨🚨')
 
     if reply_break:
         return
 
-    if random.random() < 0.5:
-        text = update.message.text
-        translated_input = translate_text(text, 'en')
-
-        messages = [
-            {'role': 'system', 'content': 'You are a sad and cynic comedian, you reply by jokes, max 20 word long'},
-            {'role': 'user', 'content': translated_input},
-        ]
-        openai_reply = generate_response(messages)
-
-        translated_reply = translate_text(openai_reply)
-        await update.message.reply_text(translated_reply)
-        enable_break()
+    if random.random() > 0.13:
         return
 
     for phrase in REPLY_PHRASES:
@@ -161,13 +146,12 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 enable_break()
                 return
 
-    if random.random() < 0.13:
-        files = s3_list_files('flatmatebot')
-        index = random.randrange(0, len(files))
-        photo = s3_get_file_obj(files[index]['key'])['Body'].read()
-        await update.message.reply_photo(photo=photo, reply_to_message_id=update.message.id)
-        enable_break()
-        return
+    files = s3_list_files('flatmatebot')
+    index = random.randrange(0, len(files))
+    photo = s3_get_file_obj(files[index]['key'])['Body'].read()
+    await update.message.reply_photo(photo=photo, reply_to_message_id=update.message.id)
+    enable_break()
+    return
 
 
 @restricted_to_chat
@@ -282,7 +266,6 @@ def main():
 
     reply_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, reply)
     digest_handler = CommandHandler('digest', digest)
-    random_cat_handler = CommandHandler('random_cat', random_cat)
     forecast_handler = CommandHandler('forecast', forecast)
     war_stats_handler = CommandHandler('war_stats', war_stats)
     chat_info_handler = CommandHandler('chat_info', chat_info)
@@ -293,14 +276,9 @@ def main():
     application.add_handler(reply_handler)
     application.add_handler(translate_handler)
     application.add_handler(digest_handler)
-    application.add_handler(random_cat_handler)
     application.add_handler(forecast_handler)
     application.add_handler(war_stats_handler)
     application.add_handler(chat_info_handler)
     application.add_handler(unknown_handler)
 
     application.run_polling()
-
-
-if __name__ == '__main__':
-    main()
