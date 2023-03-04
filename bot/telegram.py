@@ -154,6 +154,15 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return
 
 
+async def clean_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global messages_buffer
+    if messages_buffer:
+        await update.message.reply_text('Історія стерта.\n' + str(messages_buffer))
+        messages_buffer = []
+    else:
+        await update.message.reply_text('Нічого нема')
+
+
 @restricted_to_chat
 async def add_meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('Відправ мені міміс, щоб зберегти до колекції.')
@@ -270,11 +279,13 @@ def main():
     war_stats_handler = CommandHandler('war_stats', war_stats)
     chat_info_handler = CommandHandler('chat_info', chat_info)
     translate_handler = CommandHandler('translate', translate)
+    clean_history_handler = CommandHandler('clean_history', clean_history)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
     application.add_handler(add_meme_conv)
     application.add_handler(reply_handler)
     application.add_handler(translate_handler)
+    application.add_handler(clean_history_handler)
     application.add_handler(digest_handler)
     application.add_handler(forecast_handler)
     application.add_handler(war_stats_handler)
