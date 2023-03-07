@@ -14,7 +14,7 @@ from bot.ai import generate_response
 from bot.s3 import upload_file as s3_upload_file, list_files as s3_list_files, get_file_obj as s3_get_file_obj
 from bot.translate import translate_text
 from bot.weather import forecast_text
-from bot.war_stats import get_war_stats
+from bot.war_stats import get_war_stats, war_chart
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -47,6 +47,7 @@ REPLY_PHRASES = [
                                         'хозяйки. Вилижу жопу у анусі.'),
 ]
 
+MESSAGE_BUFFER_SIZE = 5
 messages_buffer = []
 
 
@@ -79,10 +80,9 @@ def restricted_to_chat(func):
 def digest_text():
     """Digest message based on weekday"""
     weekday = datetime.datetime.today().weekday()
-    weekdays = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 
-                'Пʼятниця', 'Субота', 'Неділя']
+    weekdays = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя']
 
-    return f'Cьогодні {weekdays[weekday].lower()}.\n\n{forecast_text()}\n\n{get_war_stats()}'
+    return f'{weekdays[weekday]}.\n\n{get_war_stats()} \n\n{forecast_text()}'
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -114,7 +114,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if re.findall(r'бот|чорт|тарас', str(update.message.text).lower()) or is_reply:
         message = translate_text(update.message.text, 'en')
         global messages_buffer
-        if len(messages_buffer) == 10:
+        if len(messages_buffer) == MESSAGE_BUFFER_SIZE:
             del messages_buffer[0]
 
         messages_buffer.append({'role' :'user', 'content': message})
@@ -130,7 +130,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if reply_break:
         return
 
-    if random.random() > 0.13:
+    if random.random() > 0.1:
         return
 
     for phrase in REPLY_PHRASES:
@@ -157,11 +157,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def clean_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global messages_buffer
     if messages_buffer:
-        history = ''
-        for message in messages_buffer:
-            message = dict(message)
-            history += f"%{message.get('role')}: {message.get('content')}\n"
-        await update.message.reply_text('Історія стерта: \n\n' + history)
+        await update.message.reply_text('Історія стерта: \n\n')
         messages_buffer = []
     else:
         await update.message.reply_text('Нічого нема')
@@ -237,6 +233,12 @@ async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def war_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show war stats"""
     await update.message.reply_text(get_war_stats())
+
+    # war_chart()
+    # tmp_dir = os.path.join(ROOT_DIR, 'tmp')
+    # photo = tmp_dir + '/war_chart.png'
+    # await update.message.reply_photo(photo=photo, reply_to_message_id=update.message.id)
+
 
 
 async def chat_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
