@@ -14,7 +14,7 @@ from bot.ai import generate_response
 from bot.s3 import upload_file as s3_upload_file, list_files as s3_list_files, get_file_obj as s3_get_file_obj
 from bot.translate import translate_text
 from bot.weather import forecast_text
-from bot.war_stats import get_war_stats, war_chart
+from bot.war_stats import get_war_stats
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
