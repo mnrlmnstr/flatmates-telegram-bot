@@ -14,7 +14,7 @@ from bot.ai import generate_response
 from bot.s3 import upload_file as s3_upload_file, list_files as s3_list_files, get_file_obj as s3_get_file_obj
 from bot.translate import translate_text
 from bot.weather import forecast_text
-from bot.war_stats import get_war_stats
+from bot.war_stats import get_war_stats, war_chart
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -23,6 +23,9 @@ TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+WEEKDAY = datetime.datetime.today().weekday()
+
 
 reply_break = False
 REPLY_BREAK_DURATION = 120
@@ -79,10 +82,8 @@ def restricted_to_chat(func):
 
 def digest_text():
     """Digest message based on weekday"""
-    weekday = datetime.datetime.today().weekday()
     weekdays = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя']
-
-    return f'{weekdays[weekday]}.\n\n{get_war_stats()} \n\n{forecast_text()}'
+    return f'{weekdays[WEEKDAY]}.\n\n{get_war_stats()} \n\n{forecast_text()}'
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -102,6 +103,12 @@ async def morning(context: ContextTypes.DEFAULT_TYPE):
 async def digest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show digest message and random cat"""
     await context.bot.send_message(update.effective_chat.id, text=digest_text())
+
+    if WEEKDAY == 6:
+        war_chart()
+        tmp_dir = os.path.join(ROOT_DIR, 'tmp')
+        photo = tmp_dir + '/war_chart.png'
+        await update.message.reply_photo(photo=photo)
 
 
 # TODO: Refactor 0(n+) in phrases
@@ -233,11 +240,6 @@ async def forecast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def war_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show war stats"""
     await update.message.reply_text(get_war_stats())
-
-    # war_chart()
-    # tmp_dir = os.path.join(ROOT_DIR, 'tmp')
-    # photo = tmp_dir + '/war_chart.png'
-    # await update.message.reply_photo(photo=photo, reply_to_message_id=update.message.id)
 
 
 
