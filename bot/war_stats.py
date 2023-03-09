@@ -19,7 +19,7 @@ def war_chart():
     x = [dt.datetime.strptime(date, '%Y-%m-%d') for date in x]
     y = [record['increase']['personnel_units'] for record in stats]
 
-    img = plt.imread(os.path.join(ROOT_DIR, 'tmp/zal.jpg'))
+    img = plt.imread(os.path.join(ROOT_DIR, 'static/zal.jpg'))
     fig, ax = plt.subplots()
     fig.figimage(img, 0, 0, alpha=0.6, resize=True)
     ax.bar(x, y, color='red')
