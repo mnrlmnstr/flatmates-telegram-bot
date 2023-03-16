@@ -24,9 +24,6 @@ TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-WEEKDAY = datetime.datetime.today().weekday()
-
-
 reply_break = False
 REPLY_BREAK_DURATION = 120
 REPLY_PHRASES = [
@@ -82,6 +79,7 @@ def restricted_to_chat(func):
 
 def digest_text():
     """Digest message based on weekday"""
+    WEEKDAY = datetime.datetime.today().weekday()
     weekdays = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 'Пʼятниця', 'Субота', 'Неділя']
     return f'{weekdays[WEEKDAY]}.\n\n{get_war_stats()} \n\n{forecast_text()}'
 
@@ -102,6 +100,8 @@ async def morning(context: ContextTypes.DEFAULT_TYPE):
 
 async def digest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command: show digest message and random cat"""
+    WEEKDAY = datetime.datetime.today().weekday()
+
     await context.bot.send_message(update.effective_chat.id, text=digest_text())
 
     if WEEKDAY == 6:
