@@ -47,7 +47,7 @@ REPLY_PHRASES = [
                                         'хозяйки. Вилижу жопу у анусі.'),
 ]
 
-MESSAGE_BUFFER_SIZE = 5
+MESSAGE_BUFFER_SIZE = 1
 messages_buffer = []
 
 
