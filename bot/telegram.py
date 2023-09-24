@@ -118,7 +118,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_message = update.message.reply_to_message
     is_reply = reply_message and context.bot.first_name == reply_message.from_user.first_name
 
-    if re.findall(r'бот|чорт|тарас', str(update.message.text).lower()) or is_reply:
+    if re.findall(r'чорт|тарас', str(update.message.text).lower()) or is_reply:
         message = translate_text(update.message.text, 'en')
         global messages_buffer
         if len(messages_buffer) == MESSAGE_BUFFER_SIZE:
@@ -137,7 +137,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if reply_break:
         return
 
-    if random.random() > 0.1:
+    if random.random() > 0.01:
         return
 
     for phrase in REPLY_PHRASES:
