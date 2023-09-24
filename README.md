@@ -1,4 +1,4 @@
-## Taras Devil Bot
+## Taras Devil Bot ;)
 ### Features:
 - Unfunny jokes
 - War stats
